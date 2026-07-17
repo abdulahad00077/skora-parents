@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "SKORA for Parents",
+    "slug": "skora-parents",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.jpeg",
+    "scheme": "skora-parents",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.jpeg",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.skora.parents"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./assets/apdaptive-icon.jpeg"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.skora.parents",
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "favicon": "./assets/favicon.ico"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "7644b883-1e21-48fa-bceb-b2a86307e734"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "color": "#0284C7",
+          "defaultChannel": "default",
+          "enableBackgroundRemoteNotifications": true
+        }
+      ]
+    ],
+    "notification": {
+      "icon": "./assets/icon.jpeg",
+      "color": "#0284C7",
+      "androidMode": "default",
+      "androidCollapsedTitle": "SKORA for Parents"
+    }
+  }
+}

@@ -1,0 +1,112 @@
+export interface Student {
+  id: string;
+  school_id: string;
+  name: string;
+  roll_id: string;
+  class: string;
+  section?: string;
+  photo_url?: string;
+  father_name?: string;
+  mother_name?: string;
+  parent_phone?: string;
+  parent_id?: string;
+  date_of_birth?: string;
+  created_at: string;
+  session?: string;
+  admission_number?: string;
+  roll_number?: string;
+  
+  // New fields from ERP
+  student_aadhaar?: string;
+  parent_aadhaar?: string;
+  parent_pan?: string;
+  apaar_abc_id?: string;
+  father_occupation?: string;
+  mother_occupation?: string;
+  father_qualification?: string;
+  mother_qualification?: string;
+  blood_group?: string;
+  address?: string;
+  secondary_address?: string;
+  schools?: { name: string };
+}
+
+
+
+export interface AttendanceRecord {
+  id: string;
+  student_id: string;
+  date: string;
+  status: 'present' | 'absent';
+  remarks?: string;
+}
+
+export interface Homework {
+  id: string;
+  class: string;
+  section?: string;
+  title: string;
+  description: string;
+  due_date: string;
+  created_at: string;
+}
+
+export interface Exam {
+  id: string;
+  school_id: string;
+  name: string;
+  date: string;
+}
+
+export interface ExamResult {
+  id: string;
+  exam_id: string;
+  student_id: string;
+  score: number;
+  total_marks: number;
+  exams?: Exam;
+}
+
+export interface Message {
+  id: string;
+  school_id: string;
+  sender_id: string;
+  recipient_id: string;
+  recipient_type: string;
+  message_text: string;
+  created_at: string;
+}
+
+export interface ParentMessage {
+  id: string;
+  school_id: string;
+  student_id: string;
+  teacher_id: string;
+  message: string;
+  sender_type: 'parent' | 'teacher';
+  created_at: string;
+}
+
+export interface TimetableEntry {
+  id: string;
+  school_id: string;
+  day_of_week: string;
+  start_time: string;
+  end_time: string;
+  subject: string;
+  class: string;
+  section?: string;
+  teachers?: { name: string };
+}
+
+export type NotificationType = 'homework' | 'attendance' | 'message' | 'fees' | 'marks' | 'exams';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  data?: Record<string, any>;
+  read: boolean;
+  created_at: string;
+}
