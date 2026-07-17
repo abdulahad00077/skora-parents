@@ -74,8 +74,14 @@ const MessagesScreen = () => {
           colors={isDark ? ['#1E293B', '#0F172A'] : ['#ffffff', '#F8FAFC']}
           style={[styles.headerGradient, { borderBottomColor: borderColor }]}
         >
-          <View style={[styles.headerTop, { justifyContent: 'space-between', alignItems: 'flex-start' }]}>
-            <View style={styles.headerContent}>
+          <View style={[styles.headerTop, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+            <View style={[styles.headerContent, { flexDirection: 'row', alignItems: 'center' }]}>
+              <TouchableOpacity 
+                style={{ padding: 8, marginRight: 12, borderRadius: 12, backgroundColor: 'rgba(148, 163, 184, 0.1)' }} 
+                onPress={() => navigation.goBack()}
+              >
+                <Feather name="arrow-left" size={24} color={textColor} />
+              </TouchableOpacity>
               <View style={styles.profileSection}>
                 <View style={styles.avatarBg}>
                   <MaterialCommunityIcons name="school" size={24} color="white" />

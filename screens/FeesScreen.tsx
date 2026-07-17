@@ -12,11 +12,13 @@ import {
   Modal
 } from 'react-native';
 import { useStudent } from '../hooks/useStudent';
-import { getStudentFees, FeeRecord } from '../services/fees';
+import { getStudentFees, FeeRecord, getSchoolDetails } from '../services/fees';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { Alert } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -28,7 +30,7 @@ const FeesScreen = () => {
   const { selectedStudent } = useStudent();
   const [fees, setFees] = useState<FeeRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedReceipt, setSelectedReceipt] = useState<FeeRecord | null>(null);
+  const [selectedReceipt, setSelectedReceipt] = useState<{payment: any, fee: FeeRecord} | null>(null);
   const { isDark } = useTheme();
   const { t } = useLanguage();
 
@@ -57,11 +59,131 @@ const FeesScreen = () => {
       </View>
     );
   }
+  const generatePDF = async (paymentItem: {payment: any, fee: FeeRecord}) => {
+    try {
+      const { payment, fee } = paymentItem;
+      if (!selectedStudent) return;
+      const schoolDetails = await getSchoolDetails(selectedStudent.school_id);
+      
+      const html = `
+        <html>
+          <head>
+            <style>
+              body { font-family: 'Helvetica Neue', 'Helvetica', Arial, sans-serif; padding: 40px; color: #333; }
+              .header { text-align: center; margin-bottom: 20px; border-bottom: 1px solid #E2E8F0; padding-bottom: 20px; }
+              .school-name { font-size: 28px; font-weight: normal; color: #0284C7; margin: 0; margin-bottom: 8px;}
+              .school-details { font-size: 14px; color: #64748B; margin: 0; }
+              .title-container { text-align: center; margin-top: 30px; margin-bottom: 30px; }
+              .title { font-size: 20px; font-weight: normal; color: #000; text-transform: uppercase; }
+              .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+              .info-item { display: flex; font-size: 14px; }
+              .info-label { width: 120px; }
+              .info-value { font-weight: normal; }
+              table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+              th { background-color: #3b82f6; color: white; padding: 10px; text-align: left; font-size: 14px; font-weight: normal;}
+              td { padding: 10px; border-bottom: 1px solid #E2E8F0; font-size: 14px; color: #333; }
+              .remarks { font-size: 14px; color: #333; margin-top: 20px; margin-bottom: 60px; }
+              .signature { text-align: right; font-size: 14px; color: #000; border-top: 1px solid #ccc; width: 200px; padding-top: 5px; float: right; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1 class="school-name">${schoolDetails?.name || 'School Name'}</h1>
+              <p class="school-details">
+                ${schoolDetails?.address ? `${schoolDetails.address}<br/>` : ''}
+                ${schoolDetails?.phone ? `Ph: ${schoolDetails.phone} | ` : ''}
+                ${schoolDetails?.email ? `Email: ${schoolDetails.email}<br/>` : ''}
+                ${schoolDetails?.affiliation_number ? `Affiliation No: ${schoolDetails.affiliation_number} | ` : ''} 
+                ${schoolDetails?.school_code ? `School Code: ${schoolDetails.school_code}` : ''}
+              </p>
+            </div>
+            
+            <div class="title-container">
+              <span class="title">FEE RECEIPT</span>
+            </div>
+            
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">Receipt No:</span>
+                <span class="info-value">${(payment?.id || fee.id).substring(0, 8)}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Date:</span>
+                <span class="info-value">${payment?.payment_date ? new Date(payment.payment_date).toLocaleDateString() : new Date().toLocaleDateString()}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Student Name:</span>
+                <span class="info-value">${selectedStudent?.name}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Session:</span>
+                <span class="info-value">${selectedStudent?.session || '2026-2027'}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Class:</span>
+                <span class="info-value">${selectedStudent?.class}${selectedStudent?.section ? ` - ${selectedStudent?.section}` : ''}</span>
+              </div>
+            </div>
+            
+            <table>
+              <thead>
+                <tr>
+                  <th>Fee Description</th>
+                  <th>Payment Mode</th>
+                  <th>Transaction ID</th>
+                  <th>Amount Paid (INR)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>${fee.description || fee.fee_type || fee.month || (fee.months ? fee.months.join(', ') : 'Annual fees')}</td>
+                  <td>${payment?.payment_mode || 'Cash'}</td>
+                  <td>${payment?.transaction_id || '-'}</td>
+                  <td>${(payment?.amount || fee.amount).toLocaleString()}</td>
+                </tr>
+              </tbody>
+            </table>
+            
+            <div class="remarks">
+              Remarks: ${payment?.remarks || `Paid for: ${fee.month || (fee.months ? fee.months.join(', ') : 'Fees')}`}
+            </div>
+            
+            <div style="clear: both; margin-top: 60px;">
+              <div class="signature">Authorized Signatory</div>
+            </div>
+          </body>
+        </html>
+      `;
+      
+      const { uri } = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      Alert.alert('Error', 'Could not generate PDF');
+    }
+  };
 
-  const unpaidCount = fees.filter(f => f.status === 'unpaid' || f.status === 'overdue').length;
-  const totalOutstanding = fees
-    .filter(f => f.status === 'unpaid' || f.status === 'overdue')
-    .reduce((sum, f) => sum + f.amount, 0);
+  const totalFees = fees.reduce((sum, f) => sum + f.amount, 0);
+  const totalPaid = fees.reduce((sum, f) => sum + (f.paid_amount || (f.status === 'paid' ? f.amount : 0)), 0);
+  const totalOutstanding = totalFees - totalPaid;
+
+  const allPayments = fees.flatMap(fee => {
+    if (fee.fee_payments && fee.fee_payments.length > 0) {
+      return fee.fee_payments.map(p => ({ payment: p, fee }));
+    } else if (fee.status === 'paid' || (fee.paid_amount && fee.paid_amount > 0)) {
+      return [{
+        payment: {
+          id: fee.id,
+          amount: fee.paid_amount || fee.amount,
+          payment_date: fee.payment_date || fee.created_at,
+          payment_mode: 'Cash',
+          remarks: `Paid for: ${fee.month || (fee.months ? fee.months.join(', ') : 'Fees')}`
+        },
+        fee
+      }];
+    }
+    return [];
+  }).sort((a, b) => new Date(b.payment.payment_date).getTime() - new Date(a.payment.payment_date).getTime());
 
   return (
     <View style={[styles.container, { backgroundColor: bgColor }]}>
@@ -72,10 +194,18 @@ const FeesScreen = () => {
           colors={isDark ? ['#1E293B', '#0F172A'] : ['#ffffff', '#F8FAFC']}
           style={[styles.headerGradient, { borderBottomColor: borderColor }]}
         >
-          <View style={[styles.headerTop, { justifyContent: 'space-between', alignItems: 'flex-start' }]}>
-            <View>
-              <Text style={[styles.headerTitle, { color: textColor }]}>{t('fees')}</Text>
-              <Text style={[styles.headerSubtitle, { color: subtextColor }]}>{t('feeOverview')}</Text>
+          <View style={[styles.headerTop, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity 
+                style={{ padding: 8, marginRight: 12, borderRadius: 12, backgroundColor: 'rgba(148, 163, 184, 0.1)' }} 
+                onPress={() => navigation.goBack()}
+              >
+                <Feather name="arrow-left" size={24} color={textColor} />
+              </TouchableOpacity>
+              <View>
+                <Text style={[styles.headerTitle, { color: textColor }]}>{t('fees')}</Text>
+                <Text style={[styles.headerSubtitle, { color: subtextColor }]}>{t('feeOverview')}</Text>
+              </View>
             </View>
             <TouchableOpacity
               style={styles.menuButton}
@@ -92,116 +222,100 @@ const FeesScreen = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Premium Fee Summary Card */}
-        <LinearGradient
-          colors={['#0284c7', '#0369a1']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.summaryCard}
-        >
-          <View style={styles.cardHeader}>
-            <View style={styles.walletIconBg}>
-              <MaterialCommunityIcons name="wallet" size={24} color="white" />
-            </View>
-            <View style={styles.statusBadgeLarge}>
-              <Text style={styles.statusBadgeTextLarge}>
-                {unpaidCount > 0 ? 'Action Required' : 'Account Clear'}
-              </Text>
-            </View>
-          </View>
-          <Text style={styles.outstandingLabel}>{t('totalDue')}</Text>
-          <Text style={styles.outstandingAmount}>Rs. {totalOutstanding.toLocaleString()}</Text>
-          
-          <View style={styles.safetyInfo}>
-            <Feather name="shield" size={16} color="#38BDF8" />
-            <Text style={styles.safetyText}>
-              {unpaidCount === 0 
-                ? "All dues are settled for this session."
-                : `${unpaidCount} payment(s) are currently pending.`}
-            </Text>
-          </View>
-        </LinearGradient>
+        {/* Fee Details & Payment Section */}
+        <View style={styles.feeDetailsContainer}>
+          <Text style={[styles.sectionTitleMain, { color: textColor }]}>Fee Details & Payment</Text>
+          <Text style={[styles.sectionSubtitle, { color: subtextColor }]}>View fee history and record new payments.</Text>
 
-        {/* Section Header */}
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>{t('recentTransactions')}</Text>
-        </View>
-        
-        {fees.length === 0 ? (
-          <View style={[styles.emptyCard, { backgroundColor: cardColor, borderColor }]}>
-            <View style={[styles.emptyIconBg, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F8FAFC' }]}>
-              <Feather name="check-circle" size={48} color={isDark ? '#0284C7' : '#CBD5E1'} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: textColor }]}>No Records Found</Text>
-            <Text style={[styles.emptyDesc, { color: subtextColor }]}>All clear! No fee vouchers have been generated for your account yet.</Text>
-          </View>
-        ) : (
-          fees.map((fee) => {
-            const isPaid = fee.status === 'paid';
-            const isOverdue = fee.status === 'overdue';
-            return (
-              <View key={fee.id} style={[styles.voucherCard, { backgroundColor: cardColor, borderColor }]}>
-                <View style={styles.voucherHeader}>
-                  <View style={styles.voucherTitleSection}>
-                    <Text style={[styles.voucherTitle, { color: textColor }]}>{fee.month} Voucher</Text>
-                    <View style={styles.dateRow}>
-                      <Feather name="calendar" size={12} color={subtextColor} />
-                      <Text style={[styles.dateText, { color: subtextColor }]}>
-                        Due: {new Date(fee.due_date).toLocaleDateString('en-GB')}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.amountSection}>
-                    <Text style={[styles.amountText, { color: textColor }]}>Rs. {fee.amount.toLocaleString()}</Text>
-                    <View style={[
-                      styles.statusBadgeSmall,
-                      { backgroundColor: isPaid ? (isDark ? 'rgba(22,163,74,0.2)' : '#F0FDF4') : isOverdue ? (isDark ? 'rgba(239,68,68,0.2)' : '#FEF2F2') : (isDark ? 'rgba(249,115,22,0.2)' : '#FFF7ED') }
-                    ]}>
-                      <Text style={[
-                        styles.statusBadgeTextSmall,
-                        { color: isPaid ? (isDark ? '#4ade80' : '#166534') : isOverdue ? (isDark ? '#f87171' : '#991B1B') : (isDark ? '#fb923c' : '#9A3412') }
-                      ]}>{fee.status === 'paid' ? t('paid') : fee.status === 'overdue' ? t('overdue') : t('pending')}</Text>
-                    </View>
-                  </View>
-                </View>
-                
-                <View style={[styles.divider, { backgroundColor: borderColor }]} />
-                
-                <View style={styles.voucherFooter}>
-                  {isPaid ? (
-                    <TouchableOpacity 
-                      activeOpacity={0.7}
-                      style={[styles.receiptButton, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F0F9FF' }]}
-                      onPress={() => setSelectedReceipt(fee)}
-                    >
-                      <Feather name="file-text" size={16} color="#0284C7" />
-                      <Text style={styles.receiptText}>VIEW DETAILS</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={styles.pendingIndicator}>
-                      <Feather name="alert-circle" size={16} color={isOverdue ? '#EF4444' : '#F97316'} />
-                      <Text style={[
-                        styles.pendingText,
-                        { color: isOverdue ? '#EF4444' : '#F97316' }
-                      ]}>
-                        {isOverdue ? 'Critical Action' : 'Payment Due'}
-                      </Text>
-                    </View>
-                  )}
-                  
-                  {!isPaid && (
-                    <TouchableOpacity 
-                      activeOpacity={0.8}
-                      style={styles.payButton}
-                    >
-                      <Text style={styles.payButtonText}>{t('payNow')}</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+          <View style={[styles.feeDetailsCard, { backgroundColor: cardColor, borderColor }]}>
+            <View style={styles.feeDetailsRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.feeLabel, { color: subtextColor }]}>Student</Text>
+                <Text style={[styles.feeValue, { color: textColor }]}>{selectedStudent?.name}</Text>
+                <Text style={[styles.feeSubValue, { color: subtextColor }]}>
+                  {selectedStudent?.roll_number} • {selectedStudent?.class}{selectedStudent?.section ? ` ${selectedStudent.section}` : ''}
+                </Text>
               </View>
-            );
-          })
-        )}
+              <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                <Text style={[styles.feeLabel, { color: subtextColor }]}>Fee Item</Text>
+                <Text style={[styles.feeValue, { color: textColor }]}>Annual fees</Text>
+                <Text style={[styles.feeMonths, { color: subtextColor, textAlign: 'right' }]} numberOfLines={3}>
+                  {fees.length > 0 ? Array.from(new Set(fees.flatMap(f => f.months || (f.month ? [f.month] : [])))).join(', ') || 'Fees' : 'No fees'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: borderColor, marginVertical: 20 }]} />
+
+            <View style={styles.feeTotalsRow}>
+              <View style={styles.totalCol}>
+                <Text style={[styles.feeLabel, { color: subtextColor }]}>Total Fee</Text>
+                <Text style={[styles.feeTotalValue, { color: textColor }]}>₹ {totalFees.toLocaleString()}</Text>
+              </View>
+              <View style={styles.totalCol}>
+                <Text style={[styles.feeLabel, { color: subtextColor }]}>Total Paid</Text>
+                <Text style={[styles.feeTotalValue, { color: '#16a34a' }]}>₹ {totalPaid.toLocaleString()}</Text>
+              </View>
+              <View style={styles.totalCol}>
+                <Text style={[styles.feeLabel, { color: subtextColor }]}>Pending Due</Text>
+                <Text style={[styles.feeTotalValue, { color: textColor }]}>₹ {totalOutstanding.toLocaleString()}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Payment History Section */}
+        <View style={styles.historyContainer}>
+          <View style={styles.historyHeader}>
+             <Feather name="clock" size={20} color={textColor} style={{ marginRight: 8 }} />
+             <Text style={[styles.historyTitle, { color: textColor }]}>Payment History</Text>
+          </View>
+          
+          {allPayments.length === 0 ? (
+            <View style={[styles.emptyCard, { backgroundColor: cardColor, borderColor }]}>
+              <Text style={[styles.emptyTitle, { color: textColor }]}>No Records Found</Text>
+            </View>
+          ) : (
+            <View style={styles.timelineContainer}>
+              <View style={[styles.timelineLine, { backgroundColor: borderColor }]} />
+              
+              {allPayments.map((item, index) => {
+                const { payment, fee } = item;
+                const isLeft = index % 2 === 0;
+                
+                return (
+                  <View key={payment.id} style={[styles.timelineItem, isLeft ? styles.timelineItemLeft : styles.timelineItemRight]}>
+                     <View style={[styles.timelineIconContainer, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
+                        <Text style={[styles.timelineIconText, { color: subtextColor }]}>₹</Text>
+                     </View>
+                     
+                     <TouchableOpacity 
+                       style={[styles.timelineCard, { backgroundColor: cardColor, borderColor }, isLeft ? styles.timelineCardLeft : styles.timelineCardRight]}
+                       onPress={() => setSelectedReceipt(item)}
+                       activeOpacity={0.7}
+                     >
+                        <View style={styles.timelineCardHeader}>
+                          <Text style={[styles.timelineAmount, { color: '#16a34a' }]}>
+                            ₹{payment.amount.toLocaleString()}
+                          </Text>
+                          <Text style={[styles.timelineDate, { color: subtextColor }]}>
+                            {payment.payment_date ? new Date(payment.payment_date).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}
+                          </Text>
+                        </View>
+                        <View style={styles.timelineCardFooter}>
+                           <Text style={[styles.timelineMethod, { color: subtextColor }]}>{payment.payment_mode || 'Cash'}</Text>
+                           <TouchableOpacity style={[styles.timelinePdfButton, { borderColor: borderColor }]} onPress={() => generatePDF(item)}>
+                             <Feather name="download" size={14} color={textColor} />
+                             <Text style={[styles.timelinePdfText, { color: textColor }]}>PDF</Text>
+                           </TouchableOpacity>
+                        </View>
+                     </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       {/* Details Modal */}
@@ -223,20 +337,20 @@ const FeesScreen = () => {
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.detailRow}>
                 <Text style={[styles.detailLabel, { color: subtextColor }]}>Payment ID</Text>
-                <Text style={[styles.detailValue, { color: textColor }]}>{selectedReceipt?.id || 'N/A'}</Text>
+                <Text style={[styles.detailValue, { color: textColor }]}>{selectedReceipt?.payment?.id?.substring(0, 8) || 'N/A'}</Text>
               </View>
               
               <View style={styles.detailRow}>
                 <Text style={[styles.detailLabel, { color: subtextColor }]}>Date</Text>
                 <Text style={[styles.detailValue, { color: textColor }]}>
-                  {selectedReceipt?.payment_date ? new Date(selectedReceipt.payment_date).toLocaleDateString() : (selectedReceipt?.created_at ? new Date(selectedReceipt.created_at).toLocaleDateString() : 'N/A')}
+                  {selectedReceipt?.payment?.payment_date ? new Date(selectedReceipt.payment.payment_date).toLocaleDateString() : 'N/A'}
                 </Text>
               </View>
               
               <View style={styles.detailRow}>
                 <Text style={[styles.detailLabel, { color: subtextColor }]}>Time</Text>
                 <Text style={[styles.detailValue, { color: textColor }]}>
-                  {selectedReceipt?.payment_date ? new Date(selectedReceipt.payment_date).toLocaleTimeString() : (selectedReceipt?.created_at ? new Date(selectedReceipt.created_at).toLocaleTimeString() : 'N/A')}
+                  {selectedReceipt?.payment?.created_at ? new Date(selectedReceipt.payment.created_at).toLocaleTimeString() : (selectedReceipt?.payment?.payment_date ? new Date(selectedReceipt.payment.payment_date).toLocaleTimeString() : 'N/A')}
                 </Text>
               </View>
 
@@ -267,7 +381,7 @@ const FeesScreen = () => {
               <View style={styles.detailRow}>
                 <Text style={[styles.detailLabel, { color: textColor, fontWeight: '800', fontSize: 16 }]}>Amount Paid</Text>
                 <Text style={[styles.detailValue, { color: '#10B981', fontWeight: '900', fontSize: 18 }]}>
-                  Rs. {selectedReceipt?.amount?.toLocaleString() || '0'}
+                  Rs. {selectedReceipt?.payment?.amount?.toLocaleString() || '0'}
                 </Text>
               </View>
             </ScrollView>
@@ -290,40 +404,45 @@ const styles = StyleSheet.create({
   menuButton: { padding: 4, marginLeft: -4 },
   headerTitle: { fontSize: 32, fontWeight: '900', letterSpacing: -1 },
   headerSubtitle: { fontSize: 14, fontWeight: '700', marginTop: 4 },
-  scrollContent: { paddingHorizontal: 24, paddingVertical: 24, paddingBottom: 100 },
-  summaryCard: { borderRadius: 40, padding: 32, marginBottom: 40, shadowColor: '#0284C7', shadowOffset: { width: 0, height: 15 }, shadowOpacity: 0.2, shadowRadius: 25, elevation: 8 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
-  walletIconBg: { backgroundColor: 'rgba(255,255,255,0.2)', padding: 12, borderRadius: 16 },
-  statusBadgeLarge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 999 },
-  statusBadgeTextLarge: { color: '#FFFFFF', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1.5 },
-  outstandingLabel: { color: 'rgba(255,255,255,0.7)', fontWeight: '900', fontSize: 10, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 4 },
-  outstandingAmount: { fontSize: 40, fontWeight: '900', color: '#FFFFFF', marginBottom: 24 },
-  safetyInfo: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.1)', padding: 16, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  safetyText: { color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: '700', marginLeft: 8 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, paddingHorizontal: 8 },
-  sectionTitle: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
-  emptyCard: { borderRadius: 40, padding: 45, alignItems: 'center', justifyContent: 'center', borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.03, shadowRadius: 15, elevation: 2, marginTop: 10 },
-  emptyIconBg: { padding: 24, borderRadius: 999, marginBottom: 24 },
-  emptyTitle: { fontSize: 20, fontWeight: '900', textAlign: 'center' },
-  emptyDesc: { fontSize: 14, marginTop: 10, textAlign: 'center', lineHeight: 20, fontWeight: '500' },
-  voucherCard: { borderRadius: 32, padding: 24, marginBottom: 20, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.03, shadowRadius: 15, elevation: 2 },
-  voucherHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
-  voucherTitleSection: { flex: 1 },
-  voucherTitle: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
-  dateRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
-  dateText: { fontSize: 10, fontWeight: '900', marginLeft: 6, letterSpacing: 1, textTransform: 'uppercase' },
-  amountSection: { alignItems: 'flex-end' },
-  amountText: { fontSize: 20, fontWeight: '900', lineHeight: 24 },
-  statusBadgeSmall: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999, marginTop: 8 },
-  statusBadgeTextSmall: { fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
-  divider: { height: 1, width: '100%', marginBottom: 24 },
-  voucherFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  receiptButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 16 },
-  receiptText: { color: '#0369A1', fontSize: 12, fontWeight: '900', textTransform: 'uppercase', marginLeft: 8, letterSpacing: 0.5 },
-  pendingIndicator: { flexDirection: 'row', alignItems: 'center' },
-  pendingText: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase', marginLeft: 8, letterSpacing: 0.5 },
-  payButton: { backgroundColor: '#0284C7', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 16, shadowColor: '#0284C7', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 4 },
-  payButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingVertical: 20, paddingBottom: 100 },
+  feeDetailsContainer: { marginBottom: 30 },
+  sectionTitleMain: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5, marginBottom: 4 },
+  sectionSubtitle: { fontSize: 14, marginBottom: 16 },
+  feeDetailsCard: { borderRadius: 16, padding: 20, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+  feeDetailsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  feeLabel: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, fontWeight: '600' },
+  feeValue: { fontSize: 18, fontWeight: 'bold', marginBottom: 2 },
+  feeSubValue: { fontSize: 13 },
+  feeMonths: { fontSize: 13, lineHeight: 18 },
+  feeTotalsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  totalCol: { flex: 1, alignItems: 'center' },
+  feeTotalValue: { fontSize: 20, fontWeight: 'bold' },
+  divider: { height: 1, width: '100%' },
+  
+  historyContainer: { marginTop: 10 },
+  historyHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  historyTitle: { fontSize: 18, fontWeight: 'bold' },
+  timelineContainer: { position: 'relative', paddingLeft: 40 },
+  timelineLine: { position: 'absolute', left: 19, top: 0, bottom: 0, width: 2 },
+  timelineItem: { marginBottom: 20, position: 'relative' },
+  timelineItemLeft: {},
+  timelineItemRight: {},
+  timelineIconContainer: { position: 'absolute', left: -40, top: 0, width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
+  timelineIconText: { fontSize: 18, fontWeight: 'bold' },
+  timelineCard: { borderRadius: 16, padding: 16, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 1 },
+  timelineCardLeft: {},
+  timelineCardRight: {},
+  timelineCardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, alignItems: 'center' },
+  timelineAmount: { fontSize: 18, fontWeight: 'bold' },
+  timelineDate: { fontSize: 13, fontWeight: '500' },
+  timelineCardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  timelineMethod: { fontSize: 14, fontWeight: '500' },
+  timelinePdfButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
+  timelinePdfText: { fontSize: 13, marginLeft: 6, fontWeight: 'bold' },
+  
+  emptyCard: { borderRadius: 16, padding: 30, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  emptyTitle: { fontSize: 16, fontWeight: 'bold' },
+  
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalContent: { width: '100%', borderRadius: 24, padding: 24, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 15, elevation: 10, maxHeight: '80%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },

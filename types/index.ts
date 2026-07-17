@@ -29,6 +29,7 @@ export interface Student {
   address?: string;
   secondary_address?: string;
   schools?: { name: string };
+  show_report_card?: boolean;
 }
 
 
@@ -48,6 +49,14 @@ export interface Homework {
   title: string;
   description: string;
   due_date: string;
+  created_at: string;
+}
+
+export interface HomeworkSubmission {
+  id: string;
+  homework_id: string;
+  student_id: string;
+  status: 'submitted' | 'pending' | 'late';
   created_at: string;
 }
 
@@ -108,5 +117,27 @@ export interface AppNotification {
   body: string;
   data?: Record<string, any>;
   read: boolean;
+  created_at: string;
+}
+
+export interface Grievance {
+  id: string;
+  student_id: string;
+  school_id: string;
+  message: string;
+  created_at: string;
+  status?: string;
+}
+
+export interface ReportCard {
+  id: string;
+  student_id: string;
+  school_id: string;
+  term?: string;
+  year?: string;
+  total_marks?: number;
+  obtained_marks?: number;
+  grade?: string;
+  remarks?: string;
   created_at: string;
 }

@@ -44,10 +44,18 @@ const ProfileScreen = () => {
           colors={isDark ? ['#1E293B', '#0F172A'] : ['#ffffff', '#F8FAFC']}
           style={[styles.headerGradient, { borderBottomColor: borderColor }]}
         >
-          <View style={[styles.headerTop, { justifyContent: 'space-between', alignItems: 'flex-start' }]}>
-            <View>
-              <Text style={[styles.headerTitle, { color: textColor }]}>{t('profile')}</Text>
-              <Text style={[styles.headerSubtitle, { color: subtextColor }]}>Account Settings & Students</Text>
+          <View style={[styles.headerTop, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity 
+                style={{ padding: 8, marginRight: 12, borderRadius: 12, backgroundColor: 'rgba(148, 163, 184, 0.1)' }} 
+                onPress={() => navigation.goBack()}
+              >
+                <Feather name="arrow-left" size={24} color={textColor} />
+              </TouchableOpacity>
+              <View>
+                <Text style={[styles.headerTitle, { color: textColor }]}>{t('profile')}</Text>
+                <Text style={[styles.headerSubtitle, { color: subtextColor }]}>Account Settings & Students</Text>
+              </View>
             </View>
             <TouchableOpacity
               style={styles.menuButton}

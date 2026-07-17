@@ -44,7 +44,8 @@
           "defaultChannel": "default",
           "enableBackgroundRemoteNotifications": true
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "notification": {
       "icon": "./assets/icon.jpeg",

@@ -44,7 +44,7 @@ const AboutScreen = () => {
             </View>
             <View style={styles.infoTextContainer}>
               <Text style={[styles.infoLabel, { color: subtextColor }]}>{t('developedBy')}</Text>
-              <Text style={[styles.infoValue, { color: textColor }]}>Astrix Systems</Text>
+              <Text style={[styles.infoValue, { color: textColor }]}>DEVFORDEVS</Text>
             </View>
           </View>
 
@@ -56,7 +56,7 @@ const AboutScreen = () => {
             </View>
             <View style={styles.infoTextContainer}>
               <Text style={[styles.infoLabel, { color: subtextColor }]}>{t('contactSupport')}</Text>
-              <Text style={[styles.infoValue, { color: textColor }]}>support.astrix@gmail.com </Text>
+              <Text style={[styles.infoValue, { color: textColor }]}>support.devfordevs@gmail.com</Text>
             </View>
           </View>
 
@@ -68,13 +68,13 @@ const AboutScreen = () => {
             </View>
             <View style={styles.infoTextContainer}>
               <Text style={[styles.infoLabel, { color: subtextColor }]}>Website</Text>
-              <Text style={[styles.infoValue, { color: textColor }]}>astrixsystems.in</Text>
+              <Text style={[styles.infoValue, { color: textColor }]}>devfordevs.in</Text>
             </View>
           </View>
         </View>
 
         <Text style={[styles.copyright, { color: subtextColor }]}>
-          © {new Date().getFullYear()} Astrix Systems . All rights reserved.
+          © {new Date().getFullYear()} DEVFORDEVS . All rights reserved.
         </Text>
       </ScrollView>
     </SafeAreaView>

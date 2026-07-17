@@ -18,6 +18,7 @@ import { TouchableOpacity } from 'react-native';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -26,6 +27,10 @@ const AttendanceScreen = () => {
   const { selectedStudent } = useStudent();
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedType, setSelectedType] = useState<'all' | 'morning' | 'verification'>('all');
+  
   const { isDark } = useTheme();
   const { t } = useLanguage();
 
@@ -55,6 +60,26 @@ const AttendanceScreen = () => {
     );
   }
 
+  // Determine actual type column name if present
+  const getType = (record: any) => record.type || record.attendance_type || record.attendance_system || 'morning';
+
+  const filteredAttendance = attendance.filter(record => {
+    // Date filter
+    if (selectedDate) {
+      const recordDate = new Date(record.date).toISOString().split('T')[0];
+      const filterDate = selectedDate.toISOString().split('T')[0];
+      if (recordDate !== filterDate) return false;
+    }
+    
+    // Type filter
+    if (selectedType !== 'all') {
+      const recordType = getType(record).toLowerCase();
+      if (recordType !== selectedType) return false;
+    }
+    
+    return true;
+  });
+
   return (
     <View style={[styles.container, { backgroundColor: bgColor }]}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
@@ -64,10 +89,18 @@ const AttendanceScreen = () => {
           colors={isDark ? ['#1E293B', '#0F172A'] : ['#ffffff', '#F8FAFC']}
           style={[styles.headerGradient, { borderBottomColor: borderColor }]}
         >
-          <View style={[styles.headerTop, { justifyContent: 'space-between', alignItems: 'flex-start' }]}>
-            <View>
-              <Text style={[styles.headerTitle, { color: textColor }]}>{t('attendance')}</Text>
-              <Text style={[styles.headerSubtitle, { color: subtextColor }]}>History for {selectedStudent?.name}</Text>
+          <View style={[styles.headerTop, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity 
+                style={{ padding: 8, marginRight: 12, borderRadius: 12, backgroundColor: 'rgba(148, 163, 184, 0.1)' }} 
+                onPress={() => navigation.goBack()}
+              >
+                <Feather name="arrow-left" size={24} color={textColor} />
+              </TouchableOpacity>
+              <View>
+                <Text style={[styles.headerTitle, { color: textColor }]}>{t('attendance')}</Text>
+                <Text style={[styles.headerSubtitle, { color: subtextColor }]}>History for {selectedStudent?.name}</Text>
+              </View>
             </View>
             <TouchableOpacity
               style={styles.menuButton}
@@ -79,12 +112,64 @@ const AttendanceScreen = () => {
         </LinearGradient>
       </View>
 
+      <View style={{ flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 15, backgroundColor: bgColor, alignItems: 'center', justifyContent: 'space-between', zIndex: 5, borderBottomWidth: 1, borderBottomColor: borderColor }}>
+        {/* Date Filter Button */}
+        <TouchableOpacity 
+          style={[styles.filterButton, { backgroundColor: isDark ? '#1E293B' : '#F1F5F9', flex: 1, marginRight: 10 }]} 
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Feather name="calendar" size={16} color={selectedDate ? '#0284C7' : subtextColor} />
+          <Text style={[styles.filterText, { color: selectedDate ? '#0284C7' : subtextColor }]}>
+            {selectedDate ? selectedDate.toLocaleDateString() : 'Select Date'}
+          </Text>
+          {selectedDate && (
+            <TouchableOpacity onPress={() => setSelectedDate(null)} style={{ marginLeft: 'auto' }}>
+              <Feather name="x" size={16} color="#EF4444" />
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
+
+        {/* Type Filter Buttons */}
+        <View style={{ flexDirection: 'row', backgroundColor: isDark ? '#1E293B' : '#F1F5F9', borderRadius: 12, padding: 4 }}>
+          <TouchableOpacity 
+            style={[styles.typeTab, selectedType === 'all' && styles.typeTabActive]}
+            onPress={() => setSelectedType('all')}
+          >
+            <Text style={[styles.typeTabText, selectedType === 'all' && styles.typeTabTextActive]}>All</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.typeTab, selectedType === 'morning' && styles.typeTabActive]}
+            onPress={() => setSelectedType('morning')}
+          >
+            <Text style={[styles.typeTabText, selectedType === 'morning' && styles.typeTabTextActive]}>Morning</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.typeTab, selectedType === 'verification' && styles.typeTabActive]}
+            onPress={() => setSelectedType('verification')}
+          >
+            <Text style={[styles.typeTabText, selectedType === 'verification' && styles.typeTabTextActive]}>Verif</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={selectedDate || new Date()}
+          mode="date"
+          display="default"
+          onChange={(event, date) => {
+            setShowDatePicker(Platform.OS === 'ios');
+            if (date) setSelectedDate(date);
+          }}
+        />
+      )}
+
       <ScrollView 
         style={styles.flex1}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {attendance.length === 0 ? (
+        {filteredAttendance.length === 0 ? (
           <View style={[styles.emptyCard, { backgroundColor: cardColor, borderColor }]}>
             <View style={[styles.emptyIconBg, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F8FAFC' }]}>
               <Feather name="calendar" size={64} color={isDark ? '#0284C7' : '#CBD5E1'} />
@@ -94,45 +179,37 @@ const AttendanceScreen = () => {
           </View>
         ) : (
           <View>
-            {attendance.map((record) => {
-              const isPresent = record.status === 'present';
-              const date = new Date(record.date);
-              return (
-                <View key={record.id} style={[styles.recordCard, { backgroundColor: cardColor, borderColor }]}>
+            {filteredAttendance.map((item) => (
+              <View key={item.id} style={[styles.recordCard, { backgroundColor: cardColor, borderColor }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                   <View style={[
                     styles.statusIconBg, 
-                    { backgroundColor: isPresent ? (isDark ? 'rgba(22,163,74,0.2)' : '#F0FDF4') : (isDark ? 'rgba(220,38,38,0.2)' : '#FEF2F2') }
+                    { backgroundColor: item.status === 'present' ? '#D1FAE5' : item.status === 'absent' ? '#FEE2E2' : '#FEF3C7' }
                   ]}>
-                    {isPresent ? (
-                      <Feather name="check-circle" size={24} color={isDark ? '#4ade80' : '#16A34A'} />
-                    ) : (
-                      <Feather name="x-circle" size={24} color={isDark ? '#f87171' : '#DC2626'} />
-                    )}
+                    <Feather 
+                      name={item.status === 'present' ? "check" : item.status === 'absent' ? "x" : "clock"} 
+                      size={24} 
+                      color={item.status === 'present' ? '#10B981' : item.status === 'absent' ? '#EF4444' : '#F59E0B'} 
+                    />
                   </View>
-                  
                   <View style={styles.recordInfo}>
                     <Text style={[styles.recordDate, { color: textColor }]}>
-                      {date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {new Date(item.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                     </Text>
-                    <Text style={[styles.recordDay, { color: subtextColor }]}>
-                      {date.toLocaleDateString('en-US', { weekday: 'long' })}
-                    </Text>
-                  </View>
-                  
-                  <View style={[
-                    styles.statusBadge, 
-                    { backgroundColor: isPresent ? (isDark ? 'rgba(22,163,74,0.2)' : '#F0FDF4') : (isDark ? 'rgba(220,38,38,0.2)' : '#FEF2F2') }
-                  ]}>
-                    <Text style={[
-                      styles.statusText, 
-                      { color: isPresent ? (isDark ? '#4ade80' : '#166534') : (isDark ? '#f87171' : '#991B1B') }
-                    ]}>
-                      {record.status}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                      <Text style={[styles.recordStatus, { 
+                        color: item.status === 'present' ? '#10B981' : item.status === 'absent' ? '#EF4444' : '#F59E0B'
+                      }]}>
+                        {item.status.toUpperCase()}
+                      </Text>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: subtextColor, marginLeft: 8, textTransform: 'uppercase' }}>
+                        • {getType(item)}
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              );
-            })}
+              </View>
+            ))}
           </View>
         )}
       </ScrollView>
@@ -159,10 +236,14 @@ const styles = StyleSheet.create({
   recordCard: { borderRadius: 28, padding: 20, marginBottom: 16, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.03, shadowRadius: 15, elevation: 2, flexDirection: 'row', alignItems: 'center' },
   statusIconBg: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   recordInfo: { marginLeft: 15, flex: 1 },
-  recordDate: { fontSize: 18, fontWeight: '800' },
-  recordDay: { fontSize: 10, fontWeight: '900', marginTop: 2, letterSpacing: 1, textTransform: 'uppercase' },
-  statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  statusText: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
+  recordDate: { fontSize: 16, fontWeight: '800', marginBottom: 2 },
+  recordStatus: { fontSize: 13, fontWeight: '900', letterSpacing: 1 },
+  filterButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12 },
+  filterText: { fontSize: 13, fontWeight: '800', marginLeft: 8 },
+  typeTab: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  typeTabActive: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  typeTabText: { fontSize: 12, fontWeight: '800', color: '#64748B' },
+  typeTabTextActive: { color: '#0284C7' },
 });
 
 export default AttendanceScreen;

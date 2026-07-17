@@ -71,10 +71,9 @@ const DashboardScreen = () => {
         setAttendancePerc('0');
       }
 
-      // 2. Calculate Pending Homework
+      // 2. Calculate Total Homework
       const _now = new Date();
-      const activeHw = hwData.filter(hw => new Date(hw.due_date) >= _now).length;
-      setHomeworkCount(activeHw.toString());
+      setHomeworkCount(hwData.length.toString());
 
       // 3. Find Next Class
       const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -86,7 +85,7 @@ const DashboardScreen = () => {
         .filter(t => t.start_time > currentTime)
         .sort((a, b) => a.start_time.localeCompare(b.start_time))[0];
       
-      setNextClass(upcomingClass ? upcomingClass.start_time.substring(0, 5) : 'None');
+      setNextClass(upcomingClass ? `${upcomingClass.subject ? upcomingClass.subject + ' ' : ''}(${upcomingClass.start_time.substring(0, 5)})` : 'None');
 
       // 4. Populate Recent Activity (Map top 2 messages + top 2 homeworks)
       const topMsgs = msgData.slice(0, 2).map((m: any) => ({
@@ -109,7 +108,7 @@ const DashboardScreen = () => {
 
       const combined = [...topMsgs, ...topHw]
         .sort((a, b) => b.date.getTime() - a.date.getTime())
-        .slice(0, 3);
+        .slice(0, 2);
         
       setRecentUpdates(combined);
     } catch (err) {
@@ -182,41 +181,49 @@ const DashboardScreen = () => {
         <View style={styles.mainContent}>
           
           {/* Main Info Card */}
-          <LinearGradient
-            colors={['#0ea5e9', '#0284c7']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.mainCard}
-          >
-            <View style={styles.cardHeader}>
-              <View>
-                <Text style={styles.cardLabel}>Current Class</Text>
-                <Text style={styles.cardTitle}>
-                  {selectedStudent.class}{selectedStudent.section ? ` - ${selectedStudent.section}` : ''}
-                </Text>
-              </View>
-              <View style={styles.rollBadge}>
-                <Text style={styles.rollText}>#{selectedStudent.roll_id}</Text>
-              </View>
-            </View>
-            
-            <View style={styles.cardDivider} />
-            
-            <View style={styles.cardFooter}>
-              <View style={styles.footerItem}>
-                <View style={styles.footerIconBg}>
-                  <MaterialCommunityIcons name="school" size={16} color="white" />
+          <View style={styles.cardWrapper}>
+            <LinearGradient
+              colors={['#4F46E5', '#3B82F6', '#0EA5E9']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.mainCard}
+            >
+              {/* Decorative elements */}
+              <View style={styles.decorativeCircle1} />
+              <View style={styles.decorativeCircle2} />
+              
+              <View style={styles.cardHeader}>
+                <View>
+                  <Text style={styles.cardLabel}>CURRENT CLASS</Text>
+                  <Text style={styles.cardTitle}>
+                    {selectedStudent.class}{selectedStudent.section ? ` - ${selectedStudent.section}` : ''}
+                  </Text>
                 </View>
-                <Text style={styles.footerLabel}>Active Enrollment</Text>
+                <View style={styles.rollBadge}>
+                  <Feather name="hash" size={14} color="#FFFFFF" style={{ marginRight: 2 }} />
+                  <Text style={styles.rollText}>{selectedStudent.roll_id}</Text>
+                </View>
               </View>
-              <View style={styles.sessionBadge}>
-                <View style={styles.activeDot} />
-                <Text style={styles.sessionText}>
-                  {selectedStudent.session || 'Academic Year 2026-27'}
-                </Text>
+              
+              <View style={styles.cardGlassmorphism}>
+                <View style={styles.footerItem}>
+                  <View style={styles.footerIconBg}>
+                    <MaterialCommunityIcons name="school-outline" size={20} color="#FFFFFF" />
+                  </View>
+                  <View style={{ marginLeft: 12 }}>
+                    <Text style={styles.footerLabel}>Active Enrollment</Text>
+                    <Text style={styles.sessionText}>
+                      {selectedStudent.session || 'Academic Year 2026-27'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.activeDotContainer}>
+                  <View style={styles.activeDotPulse} />
+                  <View style={styles.activeDot} />
+                </View>
               </View>
-            </View>
-          </LinearGradient>
+            </LinearGradient>
+          </View>
 
           {/* Quick Stats Grid */}
           <View style={styles.statsGrid}>
@@ -441,88 +448,125 @@ const styles = StyleSheet.create({
   mainContent: {
     padding: 25,
   },
-  mainCard: {
-    borderRadius: 36,
-    padding: 24,
-    marginBottom: 30,
-    shadowColor: '#0284C7',
-    shadowOffset: { width: 0, height: 15 },
-    shadowOpacity: 0.2,
+  cardWrapper: {
+    marginBottom: 35,
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.25,
     shadowRadius: 25,
-    elevation: 8,
+    elevation: 10,
+  },
+  mainCard: {
+    borderRadius: 32,
+    padding: 24,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  decorativeCircle1: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    top: -50,
+    right: -50,
+  },
+  decorativeCircle2: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    bottom: -30,
+    left: -30,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: 30,
+    zIndex: 1,
   },
   cardLabel: {
-    color: 'rgba(255,255,255,0.7)',
-    fontWeight: '600',
-    fontSize: 12,
-    marginBottom: 4,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '700',
+    fontSize: 11,
+    letterSpacing: 1.5,
+    marginBottom: 8,
   },
   cardTitle: {
     color: '#FFFFFF',
-    fontSize: 28,
+    fontSize: 34,
     fontWeight: '900',
+    letterSpacing: -1,
   },
   rollBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   rollText: {
     color: '#FFFFFF',
     fontWeight: '900',
-    fontSize: 12,
+    fontSize: 14,
   },
-  cardDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    marginBottom: 20,
-  },
-  cardFooter: {
+  cardGlassmorphism: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    padding: 16,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    zIndex: 1,
   },
   footerItem: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   footerIconBg: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    padding: 6,
-    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   footerLabel: {
-    color: '#FFFFFF',
-    marginLeft: 8,
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  sessionBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  activeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#4ADE80',
-    marginRight: 6,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '800',
+    fontSize: 14,
+    marginBottom: 2,
   },
   sessionText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  activeDotContainer: {
+    width: 12,
+    height: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeDotPulse: {
+    position: 'absolute',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(74, 222, 128, 0.4)',
+  },
+  activeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#4ADE80',
   },
   statsGrid: {
     flexDirection: 'row',

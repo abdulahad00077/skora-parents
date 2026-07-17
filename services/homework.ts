@@ -20,3 +20,23 @@ export async function getStudentHomework(studentClass: string, studentSection?: 
 
   return data || [];
 }
+
+export async function getHomeworkSubmissions(studentId: string): Promise<Record<string, string>> {
+  const { data, error } = await supabase
+    .from('homework_submissions')
+    .select('*')
+    .eq('student_id', studentId);
+
+  if (error) {
+    console.error('Error fetching homework submissions:', error);
+    return {};
+  }
+
+  const submissionsMap: Record<string, string> = {};
+  if (data) {
+    data.forEach(sub => {
+      submissionsMap[sub.homework_id] = sub.submitted_date || new Date().toISOString();
+    });
+  }
+  return submissionsMap;
+}

@@ -7,7 +7,8 @@ import HomeworkScreen from '../screens/HomeworkScreen';
 import FeesScreen from '../screens/FeesScreen';
 import TimetableScreen from '../screens/TimetableScreen';
 import SyllabusScreen from '../screens/SyllabusScreen';
-import MarksScreen from '../screens/MarksScreen';
+import ReportCardScreen from '../screens/ReportCardScreen';
+import GrievancesScreen from '../screens/GrievancesScreen';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/useAuth';
 import { useStudent } from '../hooks/useStudent';
@@ -191,11 +192,19 @@ const DrawerNavigator = () => {
         }}
       />
       <Drawer.Screen 
-        name="Marks" 
-        component={MarksScreen}
+        name="ReportCard" 
+        component={ReportCardScreen}
         options={{
-          drawerLabel: 'Marks & Results',
+          drawerLabel: 'Report Card',
           drawerIcon: ({ color, size }: { color: string; size: number }) => <MaterialCommunityIcons name="clipboard-text-outline" size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen 
+        name="Grievances" 
+        component={GrievancesScreen}
+        options={{
+          drawerLabel: 'Grievances',
+          drawerIcon: ({ color, size }: { color: string; size: number }) => <Feather name="alert-circle" size={size} color={color} />,
         }}
       />
     </Drawer.Navigator>

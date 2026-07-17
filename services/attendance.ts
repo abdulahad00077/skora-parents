@@ -20,5 +20,9 @@ export async function getStudentAttendance(studentId: string, month?: number, ye
     return [];
   }
 
+  if (data && data.length > 0) {
+    console.log('Attendance keys:', Object.keys(data[0]));
+  }
+
   return data || [];
 }

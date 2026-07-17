@@ -6,9 +6,9 @@ export interface SyllabusItem {
   school_id: string;
   class: string;
   subject: string;
-  title: string;
+  chapter_name: string;
   description: string;
-  file_url?: string;
+  attachment_url?: string;
 }
 
 export async function getSyllabusByClass(schoolId: string, className: string): Promise<SyllabusItem[]> {

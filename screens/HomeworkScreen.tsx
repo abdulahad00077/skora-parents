@@ -12,7 +12,7 @@ import {
   Platform 
 } from 'react-native';
 import { useStudent } from '../hooks/useStudent';
-import { getStudentHomework } from '../services/homework';
+import { getStudentHomework, getHomeworkSubmissions } from '../services/homework';
 import { Homework } from '../types';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,6 +26,7 @@ const HomeworkScreen = () => {
   const navigation = useNavigation();
   const { selectedStudent } = useStudent();
   const [homework, setHomework] = useState<Homework[]>([]);
+  const [submissions, setSubmissions] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { isDark } = useTheme();
@@ -42,7 +43,9 @@ const HomeworkScreen = () => {
     if (selectedStudent) {
       try {
         const data = await getStudentHomework(selectedStudent.class, selectedStudent.section);
+        const subs = await getHomeworkSubmissions(selectedStudent.id);
         setHomework(data);
+        setSubmissions(subs);
       } catch (error) {
         console.error('Error fetching homework:', error);
       } finally {
@@ -62,6 +65,19 @@ const HomeworkScreen = () => {
     fetchHomework();
   }, [fetchHomework]);
 
+  const getStatus = (hwId: string, dueDateStr: string): 'submitted' | 'pending' | 'late' => {
+    const submitDateStr = submissions[hwId];
+    if (!submitDateStr) return 'pending';
+    const submitDate = new Date(submitDateStr);
+    const dueDate = new Date(dueDateStr);
+    
+    // Set time to end of day for due date comparison
+    dueDate.setHours(23, 59, 59, 999);
+    
+    if (submitDate > dueDate) return 'late';
+    return 'submitted';
+  };
+
   if (loading && !refreshing) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: bgColor }]}>
@@ -80,10 +96,18 @@ const HomeworkScreen = () => {
           colors={isDark ? ['#1E293B', '#0F172A'] : ['#ffffff', '#F8FAFC']}
           style={[styles.headerGradient, { borderBottomColor: borderColor }]}
         >
-          <View style={[styles.headerTop, { justifyContent: 'space-between', alignItems: 'flex-start' }]}>
-            <View>
-              <Text style={[styles.headerTitle, { color: textColor }]}>{t('homework')}</Text>
-              <Text style={[styles.headerSubtitle, { color: subtextColor }]}>{t('dailyHomework')} - {selectedStudent?.class}</Text>
+          <View style={[styles.headerTop, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity 
+                style={{ padding: 8, marginRight: 12, borderRadius: 12, backgroundColor: 'rgba(148, 163, 184, 0.1)' }} 
+                onPress={() => navigation.goBack()}
+              >
+                <Feather name="arrow-left" size={24} color={textColor} />
+              </TouchableOpacity>
+              <View>
+                <Text style={[styles.headerTitle, { color: textColor }]}>{t('homework')}</Text>
+                <Text style={[styles.headerSubtitle, { color: subtextColor }]}>{t('dailyHomework')} - {selectedStudent?.class}</Text>
+              </View>
             </View>
             <TouchableOpacity
               style={styles.menuButton}
@@ -140,8 +164,13 @@ const HomeworkScreen = () => {
                     {t('dueDate')}: {new Date(item.due_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
                   </Text>
                 </View>
-                <View style={styles.arrowBadge}>
-                  <Feather name="chevron-right" size={16} color="white" />
+                <View style={[
+                  styles.arrowBadge,
+                  { backgroundColor: getStatus(item.id, item.due_date) === 'submitted' ? '#10B981' : getStatus(item.id, item.due_date) === 'late' ? '#F59E0B' : '#64748B' }
+                ]}>
+                  <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>
+                    {getStatus(item.id, item.due_date) === 'submitted' ? 'Submitted' : getStatus(item.id, item.due_date) === 'late' ? 'Late' : 'Pending'}
+                  </Text>
                 </View>
               </View>
             </TouchableOpacity>

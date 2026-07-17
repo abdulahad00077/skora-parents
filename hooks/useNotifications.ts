@@ -49,7 +49,11 @@ async function saveTokenToDatabase(userId: string, token: string) {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     const isUUID = uuidRegex.test(userId);
 
-    // For manual sessions, still save the token but use the manual-xxx ID
+    if (!isUUID) {
+      console.log('Skipping push token save: user_id is not a valid UUID (likely dev mode).');
+      return;
+    }
+
     const { error } = await supabase
       .from('push_tokens')
       .upsert({ 
