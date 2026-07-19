@@ -37,7 +37,6 @@ jobs:
       - name: Extract App Version
         id: extract_version
         run: |
-          # Extracts the version from app.json
           VERSION=$(node -p "require('./app.json').expo.version")
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "Extracted version: $VERSION"
@@ -47,8 +46,6 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
-
-
 
       - name: Build Locally on GitHub Runner
         id: build
@@ -60,14 +57,12 @@ jobs:
       - name: Generate Changelog
         id: changelog
         run: |
-          # Get commits since last tag
           PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           if [ -z "$PREV_TAG" ]; then
             COMMITS=$(git log --pretty=format:"- %s" -n 10)
           else
             COMMITS=$(git log --pretty=format:"- %s" $PREV_TAG..HEAD)
           fi
-          # Write to file
           echo "### What's New" > changelog.txt
           echo "$COMMITS" >> changelog.txt
           cat changelog.txt
@@ -75,8 +70,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ env.VERSION }}
-          name: Version ${{ env.VERSION }}
+          tag_name: v${{ env.VERSION }}-build.${{ github.run_number }}
+          name: Skora Connect v${{ env.VERSION }} (Build ${{ github.run_number }})
           body_path: changelog.txt
           files: app-release.apk
           make_latest: true
