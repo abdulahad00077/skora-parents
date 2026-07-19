@@ -19,8 +19,55 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTransliteration } from '../hooks/useTransliteration';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const HomeworkCard = ({ item, isDark, cardColor, borderColor, bgColor, textColor, subtextColor, getStatus, t }: any) => {
+  const transTitle = useTransliteration(item.title);
+  const transDesc = useTransliteration(item.description);
+  
+  return (
+    <TouchableOpacity 
+      activeOpacity={0.8}
+      style={[styles.homeworkCard, { backgroundColor: cardColor, borderColor }]}
+    >
+      <View style={styles.cardHeader}>
+        <View style={[styles.typeIconBg, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F0F9FF' }]}>
+          <Feather name="file-text" size={24} color="#0284C7" />
+        </View>
+        <View style={styles.titleSection}>
+          <Text style={[styles.homeworkTitle, { color: textColor }]}>{transTitle}</Text>
+          <View style={styles.metaRow}>
+            <Feather name="clock" size={12} color={subtextColor} />
+            <Text style={[styles.metaText, { color: subtextColor }]}>{t('assigned', 'ASSIGNED').toUpperCase()} {new Date(item.created_at).toLocaleDateString()}</Text>
+          </View>
+        </View>
+      </View>
+      
+      <Text style={[styles.description, { color: subtextColor }]} numberOfLines={3}>
+        {transDesc}
+      </Text>
+      
+      <View style={[styles.cardFooter, { backgroundColor: isDark ? '#0F172A' : '#F8FAFC', borderColor }]}>
+        <View style={styles.dueBadge}>
+          <Feather name="calendar" size={16} color="#EA580C" />
+          <Text style={styles.dueText}>
+            {t('dueDate')}: {new Date(item.due_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+          </Text>
+        </View>
+        <View style={[
+          styles.arrowBadge,
+          { backgroundColor: getStatus(item.id, item.due_date) === 'submitted' ? '#10B981' : getStatus(item.id, item.due_date) === 'late' ? '#F59E0B' : '#64748B' }
+        ]}>
+          <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>
+            {getStatus(item.id, item.due_date) === 'submitted' ? t('submitted', 'Submitted') : getStatus(item.id, item.due_date) === 'late' ? t('late', 'Late') : t('pending', 'Pending')}
+          </Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 const HomeworkScreen = () => {
   const navigation = useNavigation();
@@ -105,8 +152,8 @@ const HomeworkScreen = () => {
                 <Feather name="arrow-left" size={24} color={textColor} />
               </TouchableOpacity>
               <View>
-                <Text style={[styles.headerTitle, { color: textColor }]}>{t('homework')}</Text>
-                <Text style={[styles.headerSubtitle, { color: subtextColor }]}>{t('dailyHomework')} - {selectedStudent?.class}</Text>
+                <Text style={[styles.headerTitle, { color: textColor }]}>{t('homework', 'Homework')}</Text>
+                <Text style={[styles.headerSubtitle, { color: subtextColor }]}>{t('dailyHomework', 'Daily Homework')} - {selectedStudent?.class}</Text>
               </View>
             </View>
             <TouchableOpacity
@@ -130,50 +177,23 @@ const HomeworkScreen = () => {
             <View style={[styles.emptyIconBg, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F8FAFC' }]}>
               <Feather name="book-open" size={64} color={isDark ? '#0284C7' : '#CBD5E1'} />
             </View>
-            <Text style={[styles.emptyTitle, { color: textColor }]}>No Homework Yet</Text>
-            <Text style={[styles.emptyDesc, { color: subtextColor }]}>Daily assignments and project details will appear here as soon as they are assigned.</Text>
+            <Text style={[styles.emptyTitle, { color: textColor }]}>{t('noHomeworkYet', 'No Homework Yet')}</Text>
+            <Text style={[styles.emptyDesc, { color: subtextColor }]}>{t('homeworkWillAppearHere', 'Daily assignments and project details will appear here as soon as they are assigned.')}</Text>
           </View>
         ) : (
           homework.map((item) => (
-            <TouchableOpacity 
-              key={item.id} 
-              activeOpacity={0.8}
-              style={[styles.homeworkCard, { backgroundColor: cardColor, borderColor }]}
-            >
-              <View style={styles.cardHeader}>
-                <View style={[styles.typeIconBg, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F0F9FF' }]}>
-                  <Feather name="file-text" size={24} color="#0284C7" />
-                </View>
-                <View style={styles.titleSection}>
-                  <Text style={[styles.homeworkTitle, { color: textColor }]}>{item.title}</Text>
-                  <View style={styles.metaRow}>
-                    <Feather name="clock" size={12} color={subtextColor} />
-                    <Text style={[styles.metaText, { color: subtextColor }]}>ASSIGNED {new Date(item.created_at).toLocaleDateString()}</Text>
-                  </View>
-                </View>
-              </View>
-              
-              <Text style={[styles.description, { color: subtextColor }]} numberOfLines={3}>
-                {item.description}
-              </Text>
-              
-              <View style={[styles.cardFooter, { backgroundColor: isDark ? '#0F172A' : '#F8FAFC', borderColor }]}>
-                <View style={styles.dueBadge}>
-                  <Feather name="calendar" size={16} color="#EA580C" />
-                  <Text style={styles.dueText}>
-                    {t('dueDate')}: {new Date(item.due_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
-                  </Text>
-                </View>
-                <View style={[
-                  styles.arrowBadge,
-                  { backgroundColor: getStatus(item.id, item.due_date) === 'submitted' ? '#10B981' : getStatus(item.id, item.due_date) === 'late' ? '#F59E0B' : '#64748B' }
-                ]}>
-                  <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>
-                    {getStatus(item.id, item.due_date) === 'submitted' ? 'Submitted' : getStatus(item.id, item.due_date) === 'late' ? 'Late' : 'Pending'}
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
+            <HomeworkCard
+              key={item.id}
+              item={item}
+              isDark={isDark}
+              cardColor={cardColor}
+              borderColor={borderColor}
+              bgColor={bgColor}
+              textColor={textColor}
+              subtextColor={subtextColor}
+              getStatus={getStatus}
+              t={t}
+            />
           ))
         )}
       </ScrollView>

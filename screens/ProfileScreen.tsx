@@ -16,8 +16,48 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTransliteration } from '../hooks/useTransliteration';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const SwitchStudentItem = ({ student, isActive, isLast, isDark, subtextColor, activeIconBg, activeIconBorder, borderColor, selectStudent, t, styles }: any) => {
+  const transName = useTransliteration(student.name);
+  return (
+    <TouchableOpacity 
+      onPress={() => selectStudent(student)}
+      activeOpacity={0.7}
+      style={[
+        styles.studentItem,
+        isActive ? (isDark ? { backgroundColor: 'rgba(2,132,199,0.1)' } : styles.studentItemActive) : null,
+        !isLast ? [styles.borderBottom, { borderBottomColor: borderColor }] : null
+      ]}
+    >
+      <View style={[
+        styles.itemAvatar, 
+        isActive ? [styles.itemAvatarActive, { backgroundColor: isDark ? '#0ea5e9' : '#E0F2FE' }] : [styles.itemAvatarInactive, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]
+      ]}>
+        <Text style={[
+          styles.itemAvatarText,
+          isActive ? [styles.textActive, { color: isDark ? '#FFFFFF' : '#0284C7' }] : [styles.textInactive, { color: subtextColor }]
+        ]}>
+          {transName?.charAt(0) || 'S'}
+        </Text>
+      </View>
+      <View style={styles.itemInfo}>
+        <Text style={[
+          styles.itemName,
+          isActive ? [styles.itemNameActive, { color: isDark ? '#e0f2fe' : '#0C4A6E' }] : [styles.itemNameInactive, { color: subtextColor }]
+        ]}>{transName}</Text>
+        <Text style={styles.itemClass}>{t('class', 'CLASS').toUpperCase()} {student.class}</Text>
+      </View>
+      {isActive ? (
+        <View style={[styles.activeIndicator, { backgroundColor: activeIconBg, borderColor: activeIconBorder }]} />
+      ) : (
+        <Feather name="chevron-right" size={18} color="#CBD5E1" />
+      )}
+    </TouchableOpacity>
+  );
+};
 
 const ProfileScreen = () => {
   const { signOut, user } = useAuth();
@@ -25,6 +65,12 @@ const ProfileScreen = () => {
   const navigation = useNavigation();
   const { isDark } = useTheme();
   const { t } = useLanguage();
+  
+  const transSchoolName = useTransliteration(selectedStudent?.schools?.name);
+  const transFatherName = useTransliteration(selectedStudent?.father_name);
+  const transFatherOcc = useTransliteration(selectedStudent?.father_occupation);
+  const transMotherName = useTransliteration(selectedStudent?.mother_name);
+  const transMotherOcc = useTransliteration(selectedStudent?.mother_occupation);
 
   const bgColor = isDark ? '#0F172A' : '#F8FAFC';
   const headerBg = isDark ? '#1E293B' : '#FFFFFF';
@@ -53,8 +99,8 @@ const ProfileScreen = () => {
                 <Feather name="arrow-left" size={24} color={textColor} />
               </TouchableOpacity>
               <View>
-                <Text style={[styles.headerTitle, { color: textColor }]}>{t('profile')}</Text>
-                <Text style={[styles.headerSubtitle, { color: subtextColor }]}>Account Settings & Students</Text>
+                <Text style={[styles.headerTitle, { color: textColor }]}>{t('profile', 'Profile')}</Text>
+                <Text style={[styles.headerSubtitle, { color: subtextColor }]}>{t('accountSettingsStudents', 'Account Settings & Students')}</Text>
               </View>
             </View>
             <TouchableOpacity
@@ -91,9 +137,9 @@ const ProfileScreen = () => {
         {students.length > 1 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: textColor }]}>Switch Student</Text>
+              <Text style={[styles.sectionTitle, { color: textColor }]}>{t('switchStudent', 'Switch Student')}</Text>
               <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F0F9FF' }]}>
-                <Text style={styles.countText}>{students.length} Children Connected</Text>
+                <Text style={styles.countText}>{students.length} {t('childrenConnected', 'Children Connected')}</Text>
               </View>
             </View>
             <View style={[styles.studentListCard, { backgroundColor: cardColor, borderColor }]}>
@@ -101,40 +147,20 @@ const ProfileScreen = () => {
                 const isActive = selectedStudent?.id === student.id;
                 const isLast = index === students.length - 1;
                 return (
-                  <TouchableOpacity 
-                    key={student.id} 
-                    onPress={() => selectStudent(student)}
-                    activeOpacity={0.7}
-                    style={[
-                      styles.studentItem,
-                      isActive ? (isDark ? { backgroundColor: 'rgba(2,132,199,0.1)' } : styles.studentItemActive) : null,
-                      !isLast ? [styles.borderBottom, { borderBottomColor: borderColor }] : null
-                    ]}
-                  >
-                    <View style={[
-                      styles.itemAvatar, 
-                      isActive ? [styles.itemAvatarActive, { backgroundColor: isDark ? '#0ea5e9' : '#E0F2FE' }] : [styles.itemAvatarInactive, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]
-                    ]}>
-                      <Text style={[
-                        styles.itemAvatarText,
-                        isActive ? [styles.textActive, { color: isDark ? '#FFFFFF' : '#0284C7' }] : [styles.textInactive, { color: subtextColor }]
-                      ]}>
-                        {student.name.charAt(0)}
-                      </Text>
-                    </View>
-                    <View style={styles.itemInfo}>
-                      <Text style={[
-                        styles.itemName,
-                        isActive ? [styles.itemNameActive, { color: isDark ? '#e0f2fe' : '#0C4A6E' }] : [styles.itemNameInactive, { color: subtextColor }]
-                      ]}>{student.name}</Text>
-                      <Text style={styles.itemClass}>CLASS {student.class}</Text>
-                    </View>
-                    {isActive ? (
-                      <View style={[styles.activeIndicator, { backgroundColor: activeIconBg, borderColor: activeIconBorder }]} />
-                    ) : (
-                      <Feather name="chevron-right" size={18} color="#CBD5E1" />
-                    )}
-                  </TouchableOpacity>
+                  <SwitchStudentItem
+                    key={student.id}
+                    student={student}
+                    isActive={isActive}
+                    isLast={isLast}
+                    isDark={isDark}
+                    subtextColor={subtextColor}
+                    activeIconBg={activeIconBg}
+                    activeIconBorder={activeIconBorder}
+                    borderColor={borderColor}
+                    selectStudent={selectStudent}
+                    t={t}
+                    styles={styles}
+                  />
                 );
               })}
             </View>
@@ -151,8 +177,8 @@ const ProfileScreen = () => {
                 <Feather name="info" size={16} color="#0284C7" />
               </View>
               <View>
-                <Text style={styles.detailLabel}>{t('rollNumber')}</Text>
-                <Text style={[styles.detailValue, { color: textColor }]}>{selectedStudent?.admission_number || 'NOT ASSIGNED'}</Text>
+                <Text style={styles.detailLabel}>{t('rollNumber', 'Roll Number')}</Text>
+                <Text style={[styles.detailValue, { color: textColor }]}>{selectedStudent?.admission_number || t('notAssigned', 'NOT ASSIGNED')}</Text>
               </View>
             </View>
             <View style={[styles.detailDivider, { backgroundColor: borderColor }]} />
@@ -162,8 +188,8 @@ const ProfileScreen = () => {
                 <MaterialCommunityIcons name="town-hall" size={16} color="#0284C7" />
               </View>
               <View>
-                <Text style={styles.detailLabel}>School Name</Text>
-                <Text style={[styles.detailValue, { color: textColor }]}>{selectedStudent?.schools?.name || 'Not Available'}</Text>
+                <Text style={styles.detailLabel}>{t('schoolName', 'School Name')}</Text>
+                <Text style={[styles.detailValue, { color: textColor }]}>{transSchoolName || t('notAvailable', 'Not Available')}</Text>
               </View>
             </View>
             <View style={[styles.detailDivider, { backgroundColor: borderColor }]} />
@@ -173,8 +199,8 @@ const ProfileScreen = () => {
                 <MaterialCommunityIcons name="card-account-details-outline" size={16} color="#0284C7" />
               </View>
               <View>
-                <Text style={styles.detailLabel}>Aadhaar Number</Text>
-                <Text style={[styles.detailValue, { color: textColor }]}>{selectedStudent?.student_aadhaar || 'Not Updated'}</Text>
+                <Text style={styles.detailLabel}>{t('aadhaarNumber', 'Aadhaar Number')}</Text>
+                <Text style={[styles.detailValue, { color: textColor }]}>{selectedStudent?.student_aadhaar || t('notUpdated', 'Not Updated')}</Text>
               </View>
             </View>
             <View style={[styles.detailDivider, { backgroundColor: borderColor }]} />
@@ -184,8 +210,8 @@ const ProfileScreen = () => {
                 <Feather name="shield" size={16} color="#0284C7" />
               </View>
               <View>
-                <Text style={styles.detailLabel}>APAAR / ABC ID</Text>
-                <Text style={[styles.detailValue, { color: textColor }]}>{selectedStudent?.apaar_abc_id || 'Not Updated'}</Text>
+                <Text style={styles.detailLabel}>{t('apaarAbcId', 'APAAR / ABC ID')}</Text>
+                <Text style={[styles.detailValue, { color: textColor }]}>{selectedStudent?.apaar_abc_id || t('notUpdated', 'Not Updated')}</Text>
               </View>
             </View>
             <View style={[styles.detailDivider, { backgroundColor: borderColor }]} />
@@ -196,7 +222,7 @@ const ProfileScreen = () => {
                 <Feather name="calendar" size={16} color="#0284C7" />
               </View>
               <View>
-                <Text style={styles.detailLabel}>Academic Session</Text>
+                <Text style={styles.detailLabel}>{t('academicSession', 'Academic Session')}</Text>
                 <Text style={[styles.detailValue, { color: textColor }]}>{selectedStudent?.session || 'Academic Year 2026-27'}</Text>
               </View>
             </View>
@@ -216,17 +242,17 @@ const ProfileScreen = () => {
 
         {/* Parent / Guardian Details */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitleOutside, { color: textColor }]}>Parent / Guardian Details</Text>
+          <Text style={[styles.sectionTitleOutside, { color: textColor }]}>{t('parentGuardianDetails', 'Parent / Guardian Details')}</Text>
           <View style={[styles.detailsCard, { backgroundColor: cardColor, borderColor }]}>
             <View style={styles.detailItem}>
               <View style={[styles.detailIconBg, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#ECFDF5' }]}>
                 <Feather name="user" size={16} color="#10B981" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.detailLabel}>Father: {selectedStudent?.father_name || 'N/A'}</Text>
+                <Text style={styles.detailLabel}>{t('father', 'Father:')} {transFatherName || 'N/A'}</Text>
                 <Text style={[styles.detailValue, { color: textColor, fontSize: 13 }]}>
                   {selectedStudent?.father_qualification ? `${selectedStudent.father_qualification} • ` : ''}
-                  {selectedStudent?.father_occupation || 'Occupation N/A'}
+                  {transFatherOcc || t('occupationNA', 'Occupation N/A')}
                 </Text>
               </View>
             </View>
@@ -237,10 +263,10 @@ const ProfileScreen = () => {
                 <Feather name="user" size={16} color="#10B981" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.detailLabel}>Mother: {selectedStudent?.mother_name || 'N/A'}</Text>
+                <Text style={styles.detailLabel}>{t('mother', 'Mother:')} {transMotherName || 'N/A'}</Text>
                 <Text style={[styles.detailValue, { color: textColor, fontSize: 13 }]}>
                   {selectedStudent?.mother_qualification ? `${selectedStudent.mother_qualification} • ` : ''}
-                  {selectedStudent?.mother_occupation || 'Occupation N/A'}
+                  {transMotherOcc || t('occupationNA', 'Occupation N/A')}
                 </Text>
               </View>
             </View>
@@ -251,9 +277,9 @@ const ProfileScreen = () => {
                 <Feather name="file-text" size={16} color="#10B981" />
               </View>
               <View>
-                <Text style={styles.detailLabel}>Parent Aadhaar / PAN</Text>
+                <Text style={styles.detailLabel}>{t('parentAadhaarPan', 'Parent Aadhaar / PAN')}</Text>
                 <Text style={[styles.detailValue, { color: textColor }]}>
-                  {selectedStudent?.parent_aadhaar || 'Aadhaar N/A'} • {selectedStudent?.parent_pan || 'PAN N/A'}
+                  {selectedStudent?.parent_aadhaar || t('aadhaarNA', 'Aadhaar N/A')} • {selectedStudent?.parent_pan || t('panNA', 'PAN N/A')}
                 </Text>
               </View>
             </View>
@@ -266,7 +292,7 @@ const ProfileScreen = () => {
             <View style={[styles.optionIconBg, { backgroundColor: isDark ? 'rgba(220, 38, 38, 0.2)' : '#FEF2F2' }]}>
               <Feather name="log-out" size={20} color="#DC2626" />
             </View>
-            <Text style={styles.logoutText}>Secure {t('signOut')}</Text>
+            <Text style={styles.logoutText}>{t('secureSignOut', 'Secure Sign Out')}</Text>
           </TouchableOpacity>
         </View>
 

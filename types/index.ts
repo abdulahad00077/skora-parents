@@ -141,3 +141,28 @@ export interface ReportCard {
   remarks?: string;
   created_at: string;
 }
+
+export interface Driver {
+  id: string;
+  school_id: string;
+  name: string;
+  phone: string;
+  password?: string;
+  is_first_login?: boolean;
+  vehicle_number?: string;
+  vehicle_name?: string;
+  route_name?: string;
+  route_id?: string;
+  created_at: string;
+}
+
+export interface TransportLog {
+  id: string;
+  student_id: string;
+  driver_id: string;
+  school_id: string;
+  type: 'pickup' | 'drop';
+  status: 'waiting' | 'picked_up' | 'reached_school' | 'dropped';
+  timestamp: string;
+  created_at?: string;
+}

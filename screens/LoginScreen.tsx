@@ -17,11 +17,12 @@ import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useStudent } from '../hooks/useStudent';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Student } from '../types';
+import { Student, Driver } from '../types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -289,6 +290,7 @@ const styles = StyleSheet.create({
 });
 
 const LoginScreen = () => {
+  const { t, language, setLanguage } = useLanguage();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -296,10 +298,17 @@ const LoginScreen = () => {
   const [matchingStudents, setMatchingStudents] = useState<Student[]>([]);
   const [showSelection, setShowSelection] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  
+  // Driver Password Reset State
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [driverForReset, setDriverForReset] = useState<Driver | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
+  const [showLanguageSelection, setShowLanguageSelection] = useState(false);
   const { signInManual } = useAuth();
   const { selectStudent } = useStudent();
-  const { isDark } = useTheme();
+  const { isDark, toggleTheme } = useTheme();
 
   // Dynamic Theme Colors
   const bgColor = isDark ? '#020817' : '#FFFFFF';
@@ -338,13 +347,38 @@ const LoginScreen = () => {
         `91 ${digitsOnly}`
       ];
 
-      const orQuery = Array.from(new Set(variations)).map(fmt => `parent_phone.eq.${fmt}`).join(',');
+      const uniqueVariations = Array.from(new Set(variations));
 
-      // Step 1: Find Students first (Simplified query without school join yet)
+      // Step 1: Check if it's a Driver
+      const { data: drivers, error: driverError } = await supabase
+        .from('transport_drivers')
+        .select('id, school_id, name:driver_name, phone:mobile_number, password, is_first_login, vehicle_number, vehicle_name:vehicle_type, route_id, created_at')
+        .in('mobile_number', uniqueVariations);
+
+      let isDriverWithWrongPassword = false;
+
+      if (drivers && drivers.length > 0) {
+        const driver = drivers[0];
+        if (driver.password && driver.password.toLowerCase() === password.toLowerCase()) {
+          if (driver.is_first_login) {
+            setDriverForReset(driver);
+            setShowPasswordReset(true);
+            setLoading(false);
+            return;
+          }
+          await signInManual(digitsOnly, 'driver', driver);
+          setLoading(false);
+          return;
+        } else {
+          isDriverWithWrongPassword = true;
+        }
+      }
+
+      // Step 2: Find Students first (Simplified query without school join yet)
       const { data: students, error: studentError } = await supabase
         .from('students')
         .select('*')
-        .or(orQuery);
+        .in('parent_phone', uniqueVariations);
 
       if (studentError) {
         console.error('Supabase Student Query Error:', studentError);
@@ -354,7 +388,11 @@ const LoginScreen = () => {
       console.log('LoginScreen: Student data found:', students?.length || 0);
 
       if (!students || students.length === 0) {
-        setError('This phone number is not registered. (Checked ' + variations.slice(0, 3).join(', ') + ')');
+        if (isDriverWithWrongPassword) {
+          setError('Incorrect password for driver.');
+        } else {
+          setError('This phone number is not registered. (Checked ' + variations.slice(0, 3).join(', ') + ')');
+        }
         setLoading(false);
         return;
       }
@@ -396,7 +434,7 @@ const LoginScreen = () => {
       });
 
       if (validStudents.length === 0) {
-        setError('Incorrect password. Hint: first 4 letters of child name + birth year');
+        setError('Incorrect password. Please try again.');
         setLoading(false);
         return;
       }
@@ -422,8 +460,70 @@ const LoginScreen = () => {
 
   const handleSelectChild = async (student: Student) => {
     await selectStudent(student);
-    await signInManual(phoneNumber.replace(/[^0-9]/g, ''));
+    await signInManual(phoneNumber.replace(/[^0-9]/g, ''), 'parent');
     setShowSelection(false);
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    if (!driverForReset) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const { error } = await supabase
+        .from('transport_drivers')
+        .update({ password: newPassword, is_first_login: false })
+        .eq('id', driverForReset.id);
+
+      if (error) throw error;
+      
+      const updatedDriver = { ...driverForReset, password: newPassword, is_first_login: false };
+      setDriverForReset(updatedDriver);
+      setShowPasswordReset(false);
+      setShowLanguageSelection(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to update password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSkipPassword = async () => {
+    if (!driverForReset) return;
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('transport_drivers')
+        .update({ is_first_login: false })
+        .eq('id', driverForReset.id);
+
+      if (error) throw error;
+      
+      const updatedDriver = { ...driverForReset, is_first_login: false };
+      setDriverForReset(updatedDriver);
+      setShowPasswordReset(false);
+      setShowLanguageSelection(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to skip password setup');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLanguageSelect = async (lang: 'en' | 'hi') => {
+    await setLanguage(lang);
+    setShowLanguageSelection(false);
+    if (driverForReset) {
+      await signInManual(driverForReset.phone, 'driver', driverForReset);
+    }
   };
 
   return (
@@ -442,9 +542,23 @@ const LoginScreen = () => {
           paddingTop: 40,
         }}
       >
+        <View style={{ position: 'absolute', top: 50, right: 24, zIndex: 10, flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity
+            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: language === 'en' ? 'rgba(2, 132, 199, 0.2)' : 'rgba(234, 88, 12, 0.2)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, marginRight: 12 }}
+            onPress={() => setLanguage(language === 'en' ? 'hi' : 'en')}
+          >
+            <Feather name="globe" size={14} color={language === 'en' ? '#38BDF8' : '#F97316'} style={{ marginRight: 4 }} />
+            <Text style={{ fontSize: 12, fontWeight: 'bold', color: language === 'en' ? '#38BDF8' : '#F97316' }}>
+              {language === 'en' ? 'EN' : 'HI'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={toggleTheme}>
+            <Feather name={isDark ? "sun" : "moon"} size={24} color={textColor} />
+          </TouchableOpacity>
+        </View>
         <Text style={[styles.brandName, { color: textColor }]}>SKORA</Text>
         <View style={[styles.portalBadge, { backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : '#E0F2FE', borderWidth: 0 }]}>
-          <Text style={[styles.portalText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>PARENT PORTAL</Text>
+          <Text style={[styles.portalText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>{t('loginPortal', 'LOGIN PORTAL')}</Text>
         </View>
       </LinearGradient>
 
@@ -465,14 +579,14 @@ const LoginScreen = () => {
             }}
           >
             <Text style={{ fontSize: 24, fontWeight: '700', color: textColor, marginBottom: 4 }}>
-              Welcome
+              {t('welcome', 'Welcome')}
             </Text>
             <Text style={{ fontSize: 15, color: subtextColor, marginBottom: 28 }}>
-              Login with your phone and child's unique password
+              {t('loginSubtitle', 'Login with your phone and password')}
             </Text>
 
             <View style={styles.inputWrapper}>
-              <Text style={[styles.label, { color: subtextColor }]}>PHONE NUMBER</Text>
+              <Text style={[styles.label, { color: subtextColor }]}>{t('phoneNumber', 'PHONE NUMBER')}</Text>
               <View style={[styles.inputContainer, { backgroundColor: inputBgColor, borderColor: borderColor }, error && !phoneNumber ? styles.inputError : null]}>
                 <Feather name="phone" size={20} color="#0284C7" />
                 <View style={styles.prefixContainer}>
@@ -495,7 +609,7 @@ const LoginScreen = () => {
             </View>
 
             <View style={styles.inputWrapper}>
-              <Text style={[styles.label, { color: subtextColor }]}>PASSWORD</Text>
+              <Text style={[styles.label, { color: subtextColor }]}>{t('password', 'PASSWORD')}</Text>
               <View style={[styles.inputContainer, { backgroundColor: inputBgColor, borderColor: borderColor }, error && password ? styles.inputError : null]}>
                 <Feather name="lock" size={20} color="#0284C7" />
                 <View style={[styles.prefixDivider, { backgroundColor: borderColor }]} />
@@ -541,7 +655,7 @@ const LoginScreen = () => {
                 <ActivityIndicator color="white" />
               ) : (
                 <>
-                  <Text style={styles.buttonText}>Login</Text>
+                  <Text style={styles.buttonText}>{t('login', 'Login')}</Text>
                   <Feather name="arrow-right" size={20} color="white" />
                 </>
               )}
@@ -555,7 +669,7 @@ const LoginScreen = () => {
                 marginTop: 24,
               }}
             >
-              Please contact your administrator if you cannot access your account.
+              {t('contactAdminText', 'Please contact your administrator if you cannot access your account.')}
             </Text>
 
           </View>
@@ -573,7 +687,7 @@ const LoginScreen = () => {
             <View style={styles.modalHeader}>
               <View style={[styles.modalIndicator, { backgroundColor: borderColor }]} />
               <Text style={[styles.modalTitle, { color: textColor }]}>Choose Profile</Text>
-              <Text style={[styles.modalSubTitle, { color: subtextColor }]}>Select which child's profile you want to view first</Text>
+              <Text style={[styles.modalSubTitle, { color: subtextColor }]}>Select the profile you want to view first</Text>
             </View>
             
             <FlatList
@@ -602,6 +716,132 @@ const LoginScreen = () => {
               style={{ marginTop: 20, alignItems: 'center', padding: 15 }}
             >
               <Text style={{ color: '#64748B', fontWeight: '800' }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Driver Change Password Modal */}
+      <Modal
+        visible={showPasswordReset}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPasswordReset(false)}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+          style={styles.modalContainer}
+        >
+          <View style={[styles.modalContent, { backgroundColor: cardColor, paddingBottom: 50 }]}>
+            <View style={styles.modalHeader}>
+              <View style={[styles.modalIndicator, { backgroundColor: borderColor }]} />
+              <Text style={[styles.modalTitle, { color: textColor }]}>Update Password</Text>
+              <Text style={[styles.modalSubTitle, { color: subtextColor }]}>Please change your password on first login</Text>
+            </View>
+            
+            <View style={styles.inputWrapper}>
+              <Text style={[styles.label, { color: subtextColor }]}>NEW PASSWORD</Text>
+              <View style={[styles.inputContainer, { backgroundColor: inputBgColor, borderColor: borderColor }]}>
+                <Feather name="lock" size={20} color="#0284C7" />
+                <View style={[styles.prefixDivider, { backgroundColor: borderColor }]} />
+                <TextInput
+                  style={[styles.input, { color: textColor }]}
+                  placeholder="New password"
+                  placeholderTextColor={isDark ? '#64748B' : '#CBD5E1'}
+                  secureTextEntry={true}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputWrapper}>
+              <Text style={[styles.label, { color: subtextColor }]}>CONFIRM PASSWORD</Text>
+              <View style={[styles.inputContainer, { backgroundColor: inputBgColor, borderColor: borderColor }]}>
+                <Feather name="lock" size={20} color="#0284C7" />
+                <View style={[styles.prefixDivider, { backgroundColor: borderColor }]} />
+                <TextInput
+                  style={[styles.input, { color: textColor }]}
+                  placeholder="Confirm password"
+                  placeholderTextColor={isDark ? '#64748B' : '#CBD5E1'}
+                  secureTextEntry={true}
+                  value={confirmNewPassword}
+                  onChangeText={setConfirmNewPassword}
+                />
+              </View>
+            </View>
+
+            {error && (
+              <View style={styles.errorWrapper}>
+                <Feather name="shield" size={14} color="#EF4444" />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              onPress={handleChangePassword}
+              disabled={loading}
+              style={[styles.button, loading ? styles.buttonDisabled : null]}
+            >
+              {loading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={styles.buttonText}>Update Password</Text>
+              )}
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={handleSkipPassword}
+              disabled={loading}
+              style={{ marginTop: 20, alignItems: 'center', padding: 15 }}
+            >
+              <Text style={{ color: '#64748B', fontWeight: '800' }}>Skip for now</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Driver Language Selection Modal */}
+      <Modal
+        visible={showLanguageSelection}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {}}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { backgroundColor: cardColor }]}>
+            <View style={styles.modalHeader}>
+              <View style={[styles.modalIndicator, { backgroundColor: borderColor }]} />
+              <Text style={[styles.modalTitle, { color: textColor, textAlign: 'center' }]}>Preferred Language</Text>
+              <Text style={[styles.modalSubTitle, { color: subtextColor, textAlign: 'center' }]}>पसंदीदा भाषा चुनें</Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={[styles.studentItem, { backgroundColor: inputBgColor, borderColor: borderColor, borderWidth: 1, marginTop: 10 }]}
+              onPress={() => handleLanguageSelect('en')}
+            >
+              <View style={{ backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : '#E0F2FE', padding: 12, borderRadius: 16 }}>
+                <Text style={{ fontSize: 24 }}>🇬🇧</Text>
+              </View>
+              <View style={styles.studentInfo}>
+                <Text style={[styles.studentName, { color: textColor }]}>English</Text>
+                <Text style={[styles.studentClass, { color: subtextColor }]}>Set English as default</Text>
+              </View>
+              <Feather name="chevron-right" size={24} color={subtextColor} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.studentItem, { backgroundColor: inputBgColor, borderColor: borderColor, borderWidth: 1, marginTop: 16 }]}
+              onPress={() => handleLanguageSelect('hi')}
+            >
+              <View style={{ backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : '#E0F2FE', padding: 12, borderRadius: 16 }}>
+                <Text style={{ fontSize: 24 }}>🇮🇳</Text>
+              </View>
+              <View style={styles.studentInfo}>
+                <Text style={[styles.studentName, { color: textColor }]}>हिंदी (Hindi)</Text>
+                <Text style={[styles.studentClass, { color: subtextColor }]}>हिंदी को डिफ़ॉल्ट के रूप में सेट करें</Text>
+              </View>
+              <Feather name="chevron-right" size={24} color={subtextColor} />
             </TouchableOpacity>
           </View>
         </View>

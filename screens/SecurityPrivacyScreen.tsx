@@ -37,7 +37,7 @@ const SecurityPrivacyScreen = () => {
           </View>
           <Text style={[styles.title, { color: textColor }]}>{t('dataEncryption')}</Text>
           <Text style={[styles.description, { color: subtextColor }]}>
-            {t('dataEncryptionDesc')} We use industry-standard encryption protocols to safeguard your child's data and ensure absolute privacy at all times.
+            {t('dataEncryptionFullDesc', 'We use industry-standard encryption protocols to safeguard your child\'s data and ensure absolute privacy at all times.')}
           </Text>
         </View>
 
@@ -49,7 +49,7 @@ const SecurityPrivacyScreen = () => {
           </View>
           <Text style={[styles.title, { color: textColor }]}>{t('privacyPolicy')}</Text>
           <Text style={[styles.description, { color: subtextColor }]}>
-            No data is shared with third parties without your explicit consent. Your phone number is only used for authentication.
+            {t('privacyPolicyDesc', 'No data is shared with third parties without your explicit consent. Your phone number is only used for authentication.')}
           </Text>
         </View>
 
@@ -61,7 +61,7 @@ const SecurityPrivacyScreen = () => {
           </View>
           <Text style={[styles.title, { color: textColor }]}>{t('biometricAuth')}</Text>
           <Text style={[styles.description, { color: subtextColor }]}>
-            {t('biometricAuthDesc')} You can configure this in your phone's native settings.
+            {t('biometricAuthFullDesc', 'You can configure biometric authentication in your phone\'s native settings.')}
           </Text>
         </View>
       </ScrollView>

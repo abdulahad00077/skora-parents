@@ -17,6 +17,61 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTransliteration } from '../hooks/useTransliteration';
+
+const ReportCardItem = ({ report, selectedStudent, isDark, cardColor, borderColor, textColor, subtextColor, t }: any) => {
+  const transSelectedName = useTransliteration(selectedStudent?.name);
+  const transSchoolName = useTransliteration(selectedStudent?.schools?.name);
+  const transTerm = useTransliteration(report.term);
+  const transRemarks = useTransliteration(report.remarks);
+
+  return (
+    <View style={[styles.reportCard, { backgroundColor: cardColor, borderColor }]}>
+      <View style={[styles.reportHeader, { borderBottomColor: borderColor }]}>
+        <View>
+          <Text style={[styles.schoolName, { color: '#0284c7' }]}>
+            {transSchoolName || t('schoolName', 'School Name')}
+          </Text>
+          <Text style={[styles.termName, { color: textColor }]}>
+            {transTerm || t('finalTerm', 'Final Term')} {report.year || ''}
+          </Text>
+        </View>
+        <View style={styles.gradeBadge}>
+          <Text style={styles.gradeText}>{report.grade || 'A'}</Text>
+        </View>
+      </View>
+
+      <View style={styles.studentDetailsRow}>
+        <View style={styles.detailItem}>
+          <Text style={[styles.detailLabel, { color: subtextColor }]}>{t('studentName', 'Student Name')}</Text>
+          <Text style={[styles.detailValue, { color: textColor }]}>{transSelectedName}</Text>
+        </View>
+        <View style={styles.detailItem}>
+          <Text style={[styles.detailLabel, { color: subtextColor }]}>{t('class', 'Class')}</Text>
+          <Text style={[styles.detailValue, { color: textColor }]}>{selectedStudent?.class} {selectedStudent?.section}</Text>
+        </View>
+      </View>
+      
+      <View style={styles.marksContainer}>
+        <View style={[styles.marksBox, { backgroundColor: isDark ? '#0F172A' : '#F8FAFC', borderColor }]}>
+          <Text style={[styles.marksLabel, { color: subtextColor }]}>{t('totalMarks', 'Total Marks')}</Text>
+          <Text style={[styles.marksValue, { color: textColor }]}>{report.total_marks || '-'}</Text>
+        </View>
+        <View style={[styles.marksBox, { backgroundColor: isDark ? '#0F172A' : '#F8FAFC', borderColor }]}>
+          <Text style={[styles.marksLabel, { color: subtextColor }]}>{t('obtained', 'Obtained')}</Text>
+          <Text style={[styles.marksValue, { color: '#0ea5e9' }]}>{report.obtained_marks || '-'}</Text>
+        </View>
+      </View>
+
+      {report.remarks && (
+        <View style={[styles.remarksContainer, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
+          <Text style={[styles.remarksLabel, { color: subtextColor }]}>{t('teachersRemarks', "Teacher's Remarks:")}</Text>
+          <Text style={[styles.remarksText, { color: textColor }]}>{transRemarks}</Text>
+        </View>
+      )}
+    </View>
+  );
+};
 
 const ReportCardScreen = () => {
   const navigation = useNavigation();
@@ -25,6 +80,7 @@ const ReportCardScreen = () => {
   const [loading, setLoading] = useState(true);
   const { isDark } = useTheme();
   const { t } = useLanguage();
+  const transSelectedName = useTransliteration(selectedStudent?.name);
 
   const bgColor = isDark ? '#0F172A' : '#F8FAFC';
   const headerBg = isDark ? '#1E293B' : '#FFFFFF';
@@ -47,7 +103,7 @@ const ReportCardScreen = () => {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: bgColor }]}>
         <ActivityIndicator size="large" color="#0284c7" />
-        <Text style={[styles.loadingText, { color: subtextColor }]}>Loading Report Cards...</Text>
+        <Text style={[styles.loadingText, { color: subtextColor }]}>{t('loadingReportCards', 'Loading Report Cards...')}</Text>
       </View>
     );
   }
@@ -64,7 +120,7 @@ const ReportCardScreen = () => {
                 <Feather name="arrow-left" size={24} color={textColor} />
               </TouchableOpacity>
               <View style={styles.headerTitleContainer}>
-                <Text style={[styles.headerTitle, { color: textColor }]}>Report Card</Text>
+                <Text style={[styles.headerTitle, { color: textColor }]}>{t('reportCard', 'Report Card')}</Text>
               </View>
               <TouchableOpacity style={styles.iconButton} onPress={() => navigation.dispatch(DrawerActions.openDrawer())}>
                 <Feather name="menu" size={24} color={textColor} />
@@ -77,9 +133,9 @@ const ReportCardScreen = () => {
           <View style={[styles.lockedIconBg, { backgroundColor: isDark ? 'rgba(239,68,68,0.1)' : '#FEF2F2' }]}>
             <Feather name="lock" size={64} color="#EF4444" />
           </View>
-          <Text style={[styles.lockedTitle, { color: textColor }]}>Results Hidden</Text>
+          <Text style={[styles.lockedTitle, { color: textColor }]}>{t('resultsHidden', 'Results Hidden')}</Text>
           <Text style={[styles.lockedDesc, { color: subtextColor }]}>
-            Report cards are currently hidden by the school administration. Please check back later or contact the school for more information.
+            {t('reportCardsHiddenDesc', 'Report cards are currently hidden by the school administration. Please check back later or contact the school for more information.')}
           </Text>
         </View>
       </View>
@@ -101,8 +157,8 @@ const ReportCardScreen = () => {
             </TouchableOpacity>
             
             <View style={styles.headerTitleContainer}>
-              <Text style={[styles.headerTitle, { color: textColor }]}>Report Card</Text>
-              <Text style={[styles.headerSubtitle, { color: subtextColor }]}>{selectedStudent?.name}</Text>
+              <Text style={[styles.headerTitle, { color: textColor }]}>{t('reportCard', 'Report Card')}</Text>
+              <Text style={[styles.headerSubtitle, { color: subtextColor }]}>{transSelectedName}</Text>
             </View>
 
             <TouchableOpacity style={styles.iconButton} onPress={() => navigation.dispatch(DrawerActions.openDrawer())}>
@@ -122,55 +178,22 @@ const ReportCardScreen = () => {
             <View style={[styles.emptyIconBg, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F8FAFC' }]}>
               <MaterialCommunityIcons name="clipboard-text-off-outline" size={64} color={isDark ? '#0284C7' : '#CBD5E1'} />
             </View>
-            <Text style={[styles.emptyTitle, { color: textColor }]}>No Report Cards</Text>
-            <Text style={[styles.emptyDesc, { color: subtextColor }]}>There are no report cards published for this student yet.</Text>
+            <Text style={[styles.emptyTitle, { color: textColor }]}>{t('noReportCards', 'No Report Cards')}</Text>
+            <Text style={[styles.emptyDesc, { color: subtextColor }]}>{t('noReportCardsDesc', 'There are no report cards published for this student yet.')}</Text>
           </View>
         ) : (
           reportCards.map((report) => (
-            <View key={report.id} style={[styles.reportCard, { backgroundColor: cardColor, borderColor }]}>
-              <View style={[styles.reportHeader, { borderBottomColor: borderColor }]}>
-                <View>
-                  <Text style={[styles.schoolName, { color: '#0284c7' }]}>
-                    {selectedStudent?.schools?.name || 'School Name'}
-                  </Text>
-                  <Text style={[styles.termName, { color: textColor }]}>
-                    {report.term || 'Final Term'} {report.year || ''}
-                  </Text>
-                </View>
-                <View style={styles.gradeBadge}>
-                  <Text style={styles.gradeText}>{report.grade || 'A'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.studentDetailsRow}>
-                <View style={styles.detailItem}>
-                  <Text style={[styles.detailLabel, { color: subtextColor }]}>Student Name</Text>
-                  <Text style={[styles.detailValue, { color: textColor }]}>{selectedStudent?.name}</Text>
-                </View>
-                <View style={styles.detailItem}>
-                  <Text style={[styles.detailLabel, { color: subtextColor }]}>Class</Text>
-                  <Text style={[styles.detailValue, { color: textColor }]}>{selectedStudent?.class} {selectedStudent?.section}</Text>
-                </View>
-              </View>
-              
-              <View style={styles.marksContainer}>
-                <View style={[styles.marksBox, { backgroundColor: isDark ? '#0F172A' : '#F8FAFC', borderColor }]}>
-                  <Text style={[styles.marksLabel, { color: subtextColor }]}>Total Marks</Text>
-                  <Text style={[styles.marksValue, { color: textColor }]}>{report.total_marks || '-'}</Text>
-                </View>
-                <View style={[styles.marksBox, { backgroundColor: isDark ? '#0F172A' : '#F8FAFC', borderColor }]}>
-                  <Text style={[styles.marksLabel, { color: subtextColor }]}>Obtained</Text>
-                  <Text style={[styles.marksValue, { color: '#0ea5e9' }]}>{report.obtained_marks || '-'}</Text>
-                </View>
-              </View>
-
-              {report.remarks && (
-                <View style={[styles.remarksContainer, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
-                  <Text style={[styles.remarksLabel, { color: subtextColor }]}>Teacher's Remarks:</Text>
-                  <Text style={[styles.remarksText, { color: textColor }]}>{report.remarks}</Text>
-                </View>
-              )}
-            </View>
+            <ReportCardItem
+              key={report.id}
+              report={report}
+              selectedStudent={selectedStudent}
+              isDark={isDark}
+              cardColor={cardColor}
+              borderColor={borderColor}
+              textColor={textColor}
+              subtextColor={subtextColor}
+              t={t}
+            />
           ))
         )}
       </ScrollView>

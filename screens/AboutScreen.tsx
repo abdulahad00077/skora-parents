@@ -67,7 +67,7 @@ const AboutScreen = () => {
               <Feather name="globe" size={20} color="#0284C7" />
             </View>
             <View style={styles.infoTextContainer}>
-              <Text style={[styles.infoLabel, { color: subtextColor }]}>Website</Text>
+              <Text style={[styles.infoLabel, { color: subtextColor }]}>{t('website', 'Website')}</Text>
               <Text style={[styles.infoValue, { color: textColor }]}>devfordevs.in</Text>
             </View>
           </View>

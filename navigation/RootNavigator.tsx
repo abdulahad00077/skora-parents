@@ -6,6 +6,7 @@ import LoginScreen from '../screens/LoginScreen';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import DrawerNavigator from './DrawerNavigator';
+import DriverNavigator from './DriverNavigator';
 
 import SettingsScreen from '../screens/SettingsScreen';
 import SecurityPrivacyScreen from '../screens/SecurityPrivacyScreen';
@@ -14,7 +15,7 @@ import AboutScreen from '../screens/AboutScreen';
 const Stack = createNativeStackNavigator();
 
 const RootNavigator = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, userRole } = useAuth();
 
   if (loading) {
     return (
@@ -28,12 +29,16 @@ const RootNavigator = () => {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
-          <>
-            <Stack.Screen name="Main" component={DrawerNavigator} />
-            <Stack.Screen name="Settings" component={SettingsScreen} />
-            <Stack.Screen name="SecurityPrivacy" component={SecurityPrivacyScreen} />
-            <Stack.Screen name="About" component={AboutScreen} />
-          </>
+          userRole === 'driver' ? (
+            <Stack.Screen name="DriverMain" component={DriverNavigator} />
+          ) : (
+            <>
+              <Stack.Screen name="Main" component={DrawerNavigator} />
+              <Stack.Screen name="Settings" component={SettingsScreen} />
+              <Stack.Screen name="SecurityPrivacy" component={SecurityPrivacyScreen} />
+              <Stack.Screen name="About" component={AboutScreen} />
+            </>
+          )
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />
         )}

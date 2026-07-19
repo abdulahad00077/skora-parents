@@ -18,6 +18,7 @@ import { TouchableOpacity } from 'react-native';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTransliteration } from '../hooks/useTransliteration';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -33,6 +34,7 @@ const AttendanceScreen = () => {
   
   const { isDark } = useTheme();
   const { t } = useLanguage();
+  const transSelectedName = useTransliteration(selectedStudent?.name);
 
   const bgColor = isDark ? '#0F172A' : '#F8FAFC';
   const headerBg = isDark ? '#1E293B' : '#FFFFFF';
@@ -98,8 +100,8 @@ const AttendanceScreen = () => {
                 <Feather name="arrow-left" size={24} color={textColor} />
               </TouchableOpacity>
               <View>
-                <Text style={[styles.headerTitle, { color: textColor }]}>{t('attendance')}</Text>
-                <Text style={[styles.headerSubtitle, { color: subtextColor }]}>History for {selectedStudent?.name}</Text>
+                <Text style={[styles.headerTitle, { color: textColor }]}>{t('attendance', 'Attendance')}</Text>
+                <Text style={[styles.headerSubtitle, { color: subtextColor }]}>{t('historyFor', 'History for')} {transSelectedName}</Text>
               </View>
             </View>
             <TouchableOpacity
@@ -120,7 +122,7 @@ const AttendanceScreen = () => {
         >
           <Feather name="calendar" size={16} color={selectedDate ? '#0284C7' : subtextColor} />
           <Text style={[styles.filterText, { color: selectedDate ? '#0284C7' : subtextColor }]}>
-            {selectedDate ? selectedDate.toLocaleDateString() : 'Select Date'}
+            {selectedDate ? selectedDate.toLocaleDateString() : t('selectDate', 'Select Date')}
           </Text>
           {selectedDate && (
             <TouchableOpacity onPress={() => setSelectedDate(null)} style={{ marginLeft: 'auto' }}>
@@ -135,19 +137,19 @@ const AttendanceScreen = () => {
             style={[styles.typeTab, selectedType === 'all' && styles.typeTabActive]}
             onPress={() => setSelectedType('all')}
           >
-            <Text style={[styles.typeTabText, selectedType === 'all' && styles.typeTabTextActive]}>All</Text>
+            <Text style={[styles.typeTabText, selectedType === 'all' && styles.typeTabTextActive]}>{t('all', 'All')}</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.typeTab, selectedType === 'morning' && styles.typeTabActive]}
             onPress={() => setSelectedType('morning')}
           >
-            <Text style={[styles.typeTabText, selectedType === 'morning' && styles.typeTabTextActive]}>Morning</Text>
+            <Text style={[styles.typeTabText, selectedType === 'morning' && styles.typeTabTextActive]}>{t('morning', 'Morning')}</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.typeTab, selectedType === 'verification' && styles.typeTabActive]}
             onPress={() => setSelectedType('verification')}
           >
-            <Text style={[styles.typeTabText, selectedType === 'verification' && styles.typeTabTextActive]}>Verif</Text>
+            <Text style={[styles.typeTabText, selectedType === 'verification' && styles.typeTabTextActive]}>{t('verificationTab', 'Verif')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -174,8 +176,8 @@ const AttendanceScreen = () => {
             <View style={[styles.emptyIconBg, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F8FAFC' }]}>
               <Feather name="calendar" size={64} color={isDark ? '#0284C7' : '#CBD5E1'} />
             </View>
-            <Text style={[styles.emptyTitle, { color: textColor }]}>No Records Found</Text>
-            <Text style={[styles.emptyDesc, { color: subtextColor }]}>Attendance records for this student will appear here once updated by the school.</Text>
+            <Text style={[styles.emptyTitle, { color: textColor }]}>{t('noRecordsFound', 'No Records Found')}</Text>
+            <Text style={[styles.emptyDesc, { color: subtextColor }]}>{t('attendanceRecordsWillAppear', 'Attendance records for this student will appear here once updated by the school.')}</Text>
           </View>
         ) : (
           <View>
@@ -200,10 +202,10 @@ const AttendanceScreen = () => {
                       <Text style={[styles.recordStatus, { 
                         color: item.status === 'present' ? '#10B981' : item.status === 'absent' ? '#EF4444' : '#F59E0B'
                       }]}>
-                        {item.status.toUpperCase()}
+                        {t(item.status.toLowerCase() as any, item.status).toUpperCase()}
                       </Text>
                       <Text style={{ fontSize: 12, fontWeight: '700', color: subtextColor, marginLeft: 8, textTransform: 'uppercase' }}>
-                        • {getType(item)}
+                        • {t(getType(item).toLowerCase() as any, getType(item))}
                       </Text>
                     </View>
                   </View>

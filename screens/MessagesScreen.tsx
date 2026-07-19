@@ -23,6 +23,43 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTransliteration } from '../hooks/useTransliteration';
+
+const MessageItem = ({ msg, isMe, cardColor, altTextColor, subtextColor, styles }: any) => {
+  const transMessage = useTransliteration(msg.message_text);
+
+  return (
+    <View 
+      style={[
+        styles.messageWrapper,
+        isMe ? styles.messageWrapperMe : styles.messageWrapperThem
+      ]}
+    >
+      {!isMe && (
+        <View style={styles.avatarMini}>
+          <Text style={styles.avatarTextMini}>T</Text>
+        </View>
+      )}
+      <View style={[
+        styles.messageBubble,
+        isMe ? styles.messageBubbleMe : [styles.messageBubbleThem, { backgroundColor: cardColor, borderColor: '#F1F5F9' }] // hardcoded border for now to avoid passing too many props
+      ]}>
+        <Text style={[
+          styles.messageText,
+          isMe ? styles.messageTextMe : [styles.messageTextThem, { color: altTextColor }]
+        ]}>
+          {transMessage}
+        </Text>
+        <Text style={[
+          styles.messageTime,
+          isMe ? styles.messageTimeMe : [styles.messageTimeThem, { color: subtextColor }]
+        ]}>
+          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </Text>
+      </View>
+    </View>
+  );
+};
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -129,36 +166,15 @@ const MessagesScreen = () => {
           messages.slice().reverse().map((msg: any) => {
                 const isMe = msg.sender_id === user?.id;
                 return (
-                  <View 
-                    key={msg.id} 
-                    style={[
-                      styles.messageWrapper,
-                      isMe ? styles.messageWrapperMe : styles.messageWrapperThem
-                    ]}
-                  >
-                    {!isMe && (
-                      <View style={styles.avatarMini}>
-                        <Text style={styles.avatarTextMini}>T</Text>
-                      </View>
-                    )}
-                    <View style={[
-                      styles.messageBubble,
-                      isMe ? styles.messageBubbleMe : [styles.messageBubbleThem, { backgroundColor: cardColor, borderColor }]
-                    ]}>
-                      <Text style={[
-                        styles.messageText,
-                        isMe ? styles.messageTextMe : [styles.messageTextThem, { color: altTextColor }]
-                      ]}>
-                        {msg.message_text}
-                      </Text>
-                      <Text style={[
-                        styles.messageTime,
-                        isMe ? styles.messageTimeMe : [styles.messageTimeThem, { color: subtextColor }]
-                      ]}>
-                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </Text>
-                    </View>
-                  </View>
+                  <MessageItem
+                    key={msg.id}
+                    msg={msg}
+                    isMe={isMe}
+                    cardColor={cardColor}
+                    altTextColor={altTextColor}
+                    subtextColor={subtextColor}
+                    styles={styles}
+                  />
                 );
               })
         )}

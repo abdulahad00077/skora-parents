@@ -18,8 +18,51 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTransliteration } from '../hooks/useTransliteration';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const ClassCard = ({ entry, isDark, cardColor, borderColor, bgColor, textColor, subtextColor, index, isLast, t }: any) => {
+  const transSubject = useTransliteration(entry.subject);
+  const transTeacher = useTransliteration(entry.teachers?.name);
+  return (
+    <TouchableOpacity 
+      activeOpacity={0.9}
+      style={[styles.classCard, { backgroundColor: cardColor, borderColor }]}
+    >
+      <View style={styles.timelineSection}>
+        <View style={[styles.timeBadge, { backgroundColor: bgColor, borderColor }]}>
+          <Text style={[styles.timeText, { color: textColor }]}>{entry.start_time}</Text>
+        </View>
+        {!isLast && (
+          <View style={[styles.timelineLine, { backgroundColor: borderColor }]} />
+        )}
+      </View>
+
+      <View style={styles.classInfo}>
+        <View style={styles.classHeader}>
+          <View style={styles.subjectSection}>
+            <Text style={[styles.subjectName, { color: textColor }]}>{transSubject}</Text>
+            <View style={styles.teacherRow}>
+              <MaterialCommunityIcons name="school" size={12} color={subtextColor} />
+              <Text style={[styles.teacherName, { color: subtextColor }]}>
+                {transTeacher || t('assignedInstructor', 'Assigned Instructor')}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.bookIconBg, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F0F9FF' }]}>
+            <Feather name="book" size={16} color="#0284C7" />
+          </View>
+        </View>
+        
+        <View style={[styles.durationBadge, { backgroundColor: bgColor, borderColor }]}>
+          <Feather name="clock" size={10} color={subtextColor} />
+          <Text style={[styles.durationText, { color: subtextColor }]}>{t('endsAt', 'Ends at')} {entry.end_time}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 const TimetableScreen = () => {
   const navigation = useNavigation();
@@ -80,8 +123,8 @@ const TimetableScreen = () => {
                 <Feather name="arrow-left" size={24} color={textColor} />
               </TouchableOpacity>
               <View>
-                <Text style={[styles.headerTitle, { color: textColor }]}>{t('timetable')}</Text>
-                <Text style={[styles.headerSubtitle, { color: subtextColor }]}>{t('classTimetable')}</Text>
+                <Text style={[styles.headerTitle, { color: textColor }]}>{t('timetable', 'Timetable')}</Text>
+                <Text style={[styles.headerSubtitle, { color: subtextColor }]}>{t('classTimetable', 'Class Timetable')}</Text>
               </View>
               <View style={[styles.clockIconBg, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F0F9FF', marginLeft: 10 }]}>
                  <Feather name="clock" size={24} color="#0284C7" />
@@ -120,7 +163,7 @@ const TimetableScreen = () => {
                   styles.dayButtonText, 
                   isActive ? styles.textWhite : { color: subtextColor }
                 ]}>
-                  {day.substring(0, 3)}
+                  {t((day.toLowerCase() + 'Short') as any, day.substring(0, 3))}
                 </Text>
               </TouchableOpacity>
             );
@@ -135,7 +178,7 @@ const TimetableScreen = () => {
       >
         <View style={styles.sectionHeader}>
           <Feather name="calendar" size={16} color="#0284C7" />
-          <Text style={[styles.sectionTitle, { color: textColor }]}>{activeDay}'s Classes</Text>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>{t(activeDay.toLowerCase() as any, activeDay)} {t('classes', 'Classes')}</Text>
         </View>
 
         {daySchedule.length === 0 ? (
@@ -143,47 +186,24 @@ const TimetableScreen = () => {
             <View style={[styles.emptyIconBg, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F8FAFC' }]}>
               <Feather name="clock" size={48} color={isDark ? '#0284C7' : '#CBD5E1'} />
             </View>
-            <Text style={[styles.emptyTitle, { color: textColor }]}>No Classes Scheduled</Text>
-            <Text style={[styles.emptyDesc, { color: subtextColor }]}>Enjoy your break! There are no academic sessions planned for {activeDay}.</Text>
+            <Text style={[styles.emptyTitle, { color: textColor }]}>{t('noClassesScheduled', 'No Classes Scheduled')}</Text>
+            <Text style={[styles.emptyDesc, { color: subtextColor }]}>{t('enjoyYourBreak', 'Enjoy your break! There are no academic sessions planned for')} {t(activeDay.toLowerCase() as any, activeDay)}.</Text>
           </View>
         ) : (
           daySchedule.map((entry, index) => (
-            <TouchableOpacity 
-              key={entry.id} 
-              activeOpacity={0.9}
-              style={[styles.classCard, { backgroundColor: cardColor, borderColor }]}
-            >
-              <View style={styles.timelineSection}>
-                <View style={[styles.timeBadge, { backgroundColor: bgColor, borderColor }]}>
-                  <Text style={[styles.timeText, { color: textColor }]}>{entry.start_time}</Text>
-                </View>
-                {index !== daySchedule.length - 1 && (
-                  <View style={[styles.timelineLine, { backgroundColor: borderColor }]} />
-                )}
-              </View>
-
-              <View style={styles.classInfo}>
-                <View style={styles.classHeader}>
-                  <View style={styles.subjectSection}>
-                    <Text style={[styles.subjectName, { color: textColor }]}>{entry.subject}</Text>
-                    <View style={styles.teacherRow}>
-                      <MaterialCommunityIcons name="school" size={12} color={subtextColor} />
-                      <Text style={[styles.teacherName, { color: subtextColor }]}>
-                        {entry.teachers?.name || 'Assigned Instructor'}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={[styles.bookIconBg, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F0F9FF' }]}>
-                    <Feather name="book" size={16} color="#0284C7" />
-                  </View>
-                </View>
-                
-                <View style={[styles.durationBadge, { backgroundColor: bgColor, borderColor }]}>
-                  <Feather name="clock" size={10} color={subtextColor} />
-                  <Text style={[styles.durationText, { color: subtextColor }]}>Ends at {entry.end_time}</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
+            <ClassCard
+              key={entry.id}
+              entry={entry}
+              isDark={isDark}
+              cardColor={cardColor}
+              borderColor={borderColor}
+              bgColor={bgColor}
+              textColor={textColor}
+              subtextColor={subtextColor}
+              index={index}
+              isLast={index === daySchedule.length - 1}
+              t={t}
+            />
           ))
         )}
       </ScrollView>

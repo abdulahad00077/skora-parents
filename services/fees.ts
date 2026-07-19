@@ -56,11 +56,11 @@ export interface SchoolDetails {
   school_code?: string;
 }
 
-export async function getSchoolDetails(schoolId: string) {
+export async function getSchoolDetails(schoolId: string): Promise<SchoolDetails | null> {
   try {
     const { data, error } = await supabase
       .from('schools')
-      .select('name, address, email, phone')
+      .select('name, address, email, phone, affiliation_number, school_code')
       .eq('id', schoolId)
       .single();
       
@@ -69,7 +69,7 @@ export async function getSchoolDetails(schoolId: string) {
       return null;
     }
     
-    return data;
+    return data as SchoolDetails;
   } catch (error) {
     console.error('getSchoolDetails error:', error);
     return null;

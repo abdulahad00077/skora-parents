@@ -9,20 +9,47 @@ import TimetableScreen from '../screens/TimetableScreen';
 import SyllabusScreen from '../screens/SyllabusScreen';
 import ReportCardScreen from '../screens/ReportCardScreen';
 import GrievancesScreen from '../screens/GrievancesScreen';
+import TransportScreen from '../screens/TransportScreen';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/useAuth';
 import { useStudent } from '../hooks/useStudent';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { TouchableOpacity, ScrollView } from 'react-native';
+import { useTransliteration } from '../hooks/useTransliteration';
 
 const Drawer = createDrawerNavigator();
+
+const SiblingBadge = ({ student, isSelected, isDark, dividerColor, onPress }: any) => {
+  const transName = useTransliteration(student.name.split(' ')[0]);
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[
+        styles.siblingBadge,
+        { 
+          backgroundColor: isSelected ? '#0284c7' : (isDark ? '#334155' : '#E0F2FE'),
+          borderColor: isSelected ? '#0284c7' : dividerColor,
+          borderWidth: 1
+        }
+      ]}
+    >
+      <Text style={[
+        styles.siblingText,
+        { color: isSelected ? '#FFFFFF' : (isDark ? '#cbd5e1' : '#0284c7') }
+      ]}>
+        {transName}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 const CustomDrawerContent = (props: any) => {
   const { signOut } = useAuth();
   const { students, selectedStudent, selectStudent } = useStudent();
   const { isDark } = useTheme();
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
+  const transSelectedName = useTransliteration(selectedStudent?.name);
 
   const bgColor = isDark ? '#0F172A' : '#FFFFFF';
   const headerBg = isDark ? '#1E293B' : '#F8FAFC';
@@ -33,7 +60,7 @@ const CustomDrawerContent = (props: any) => {
   const handleSignOut = () => {
     Alert.alert(
       t('signOut'),
-      "Are you sure you want to log out?",
+      t('signOutConfirm', 'Are you sure you want to log out?'),
       [
         { text: t('cancel'), style: "cancel" },
         { text: t('signOut'), onPress: signOut, style: 'destructive' }
@@ -43,49 +70,48 @@ const CustomDrawerContent = (props: any) => {
 
   return (
     <DrawerContentScrollView {...props} contentContainerStyle={[styles.drawerContent, { backgroundColor: bgColor }]}>
-      <View style={[styles.drawerHeader, { backgroundColor: headerBg, borderBottomColor: dividerColor }]}>
+      <View style={[styles.drawerHeader, { backgroundColor: headerBg, borderBottomColor: dividerColor, position: 'relative' }]}>
+        <TouchableOpacity 
+          style={{ position: 'absolute', top: 20, right: 20, flexDirection: 'row', alignItems: 'center', backgroundColor: language === 'en' ? '#E0F2FE' : '#FFEDD5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}
+          onPress={() => setLanguage(language === 'en' ? 'hi' : 'en')}
+        >
+          <Feather name="globe" size={14} color={language === 'en' ? '#0284c7' : '#EA580C'} style={{ marginRight: 4 }} />
+          <Text style={{ fontSize: 12, fontWeight: 'bold', color: language === 'en' ? '#0284c7' : '#EA580C' }}>
+            {language === 'en' ? 'EN' : 'HI'}
+          </Text>
+        </TouchableOpacity>
+        
         <View style={styles.profileAvatar}>
           <Text style={styles.avatarInitial}>
-            {selectedStudent?.name?.charAt(0) || 'S'}
+            {transSelectedName?.charAt(0) || 'S'}
           </Text>
         </View>
         <Text style={[styles.profileName, { color: textColor }]}>
-          {selectedStudent?.name || t('appName')}
+          {transSelectedName || t('appName')}
         </Text>
         <Text style={[styles.profileEmail, { color: subtextColor }]}>
-          Class {selectedStudent?.class || '-'}
+          {t('class')} {selectedStudent?.class || '-'}
         </Text>
 
         {/* Sibling Switcher */}
         {students.length > 1 && (
           <View style={styles.siblingList}>
-            <Text style={styles.siblingLabel}>SWITCH PROFILE</Text>
+            <Text style={styles.siblingLabel}>{t('switchProfile', 'SWITCH PROFILE')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.siblingScroll}>
               {students.map((student) => {
                 const isSelected = student.id === selectedStudent?.id;
                 return (
-                  <TouchableOpacity
+                  <SiblingBadge 
                     key={student.id}
+                    student={student} 
+                    isSelected={isSelected} 
+                    isDark={isDark} 
+                    dividerColor={dividerColor} 
                     onPress={() => {
                       selectStudent(student);
                       props.navigation.closeDrawer();
-                    }}
-                    style={[
-                      styles.siblingBadge,
-                      { 
-                        backgroundColor: isSelected ? '#0284c7' : (isDark ? '#334155' : '#E0F2FE'),
-                        borderColor: isSelected ? '#0284c7' : dividerColor,
-                        borderWidth: 1
-                      }
-                    ]}
-                  >
-                    <Text style={[
-                      styles.siblingText,
-                      { color: isSelected ? '#FFFFFF' : (isDark ? '#cbd5e1' : '#0284c7') }
-                    ]}>
-                      {student.name.split(' ')[0]}
-                    </Text>
-                  </TouchableOpacity>
+                    }} 
+                  />
                 );
               })}
             </ScrollView>
@@ -187,7 +213,7 @@ const DrawerNavigator = () => {
         name="Syllabus" 
         component={SyllabusScreen}
         options={{
-          drawerLabel: 'Syllabus',
+          drawerLabel: t('syllabus', 'Syllabus'),
           drawerIcon: ({ color, size }: { color: string; size: number }) => <Feather name="book" size={size} color={color} />,
         }}
       />
@@ -195,15 +221,23 @@ const DrawerNavigator = () => {
         name="ReportCard" 
         component={ReportCardScreen}
         options={{
-          drawerLabel: 'Report Card',
+          drawerLabel: t('reportCard', 'Report Card'),
           drawerIcon: ({ color, size }: { color: string; size: number }) => <MaterialCommunityIcons name="clipboard-text-outline" size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen 
+        name="Transport" 
+        component={TransportScreen}
+        options={{
+          drawerLabel: t('transport', 'Transport'),
+          drawerIcon: ({ color, size }: { color: string; size: number }) => <Feather name="truck" size={size} color={color} />,
         }}
       />
       <Drawer.Screen 
         name="Grievances" 
         component={GrievancesScreen}
         options={{
-          drawerLabel: 'Grievances',
+          drawerLabel: t('grievances', 'Grievances'),
           drawerIcon: ({ color, size }: { color: string; size: number }) => <Feather name="alert-circle" size={size} color={color} />,
         }}
       />
@@ -213,7 +247,6 @@ const DrawerNavigator = () => {
 
 const styles = StyleSheet.create({
   drawerContent: {
-    flex: 1,
     paddingTop: 0,
   },
   drawerHeader: {
@@ -274,8 +307,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   drawerItems: {
-    flex: 1,
     paddingHorizontal: 8,
+    paddingBottom: 24,
   },
   drawerItemLabel: {
     fontSize: 14,

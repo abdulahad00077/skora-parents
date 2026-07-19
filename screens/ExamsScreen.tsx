@@ -18,6 +18,97 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTransliteration } from '../hooks/useTransliteration';
+
+const ExamScheduleItem = ({ exam, isDark, cardColor, borderColor, textColor, subtextColor }: any) => {
+  const transExamName = useTransliteration(exam.name);
+  return (
+    <TouchableOpacity 
+      activeOpacity={0.9}
+      style={[styles.examCard, { backgroundColor: cardColor, borderColor }]}
+    >
+      <View style={styles.cardRow}>
+        <LinearGradient
+          colors={isDark ? ['#0284C7', '#0369A1'] : ['#F0F9FF', '#E0F2FE']}
+          style={styles.dateBadge}
+        >
+          <Text style={[styles.dateNum, { color: isDark ? '#F0F9FF' : '#0369A1' }]}>{new Date(exam.date).getDate()}</Text>
+          <Text style={[styles.dateMonth, { color: isDark ? '#E0F2FE' : '#0284C7' }]}>{new Date(exam.date).toLocaleDateString('en-US', { month: 'short' })}</Text>
+        </LinearGradient>
+        <View style={styles.examInfo}>
+          <Text style={[styles.examName, { color: textColor }]}>{transExamName}</Text>
+          <View style={styles.dayRow}>
+            <Feather name="trending-up" size={12} color="#0284C7" />
+            <Text style={[styles.dayText, { color: subtextColor }]}>{new Date(exam.date).toLocaleDateString('en-US', { weekday: 'long' })}</Text>
+          </View>
+        </View>
+        <View style={[styles.chevronBg, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F8FAFC' }]}>
+          <Feather name="chevron-right" size={18} color={isDark ? '#F1F5F9' : '#CBD5E1'} />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+const ExamResultItem = ({ result, isDark, cardColor, borderColor, textColor, subtextColor, t }: any) => {
+  const transExamName = useTransliteration(result.exams?.name);
+  
+  const percentage = (result.score / result.total_marks) * 100;
+  let statusColor = '#22C55E';
+  let statusLabel = t('excellent', 'Excellent');
+  if (percentage < 50) {
+    statusColor = '#EF4444';
+    statusLabel = t('needsWork', 'Needs Work');
+  } else if (percentage < 75) {
+    statusColor = '#F59E0B';
+    statusLabel = t('passed', 'Passed');
+  } else if (percentage < 90) {
+    statusLabel = t('veryGood', 'Very Good');
+  }
+
+  return (
+    <TouchableOpacity 
+      activeOpacity={0.9}
+      style={[styles.resultCard, { backgroundColor: cardColor, borderColor }]}
+    >
+      <View style={styles.resultHeader}>
+        <View style={styles.subjectInfo}>
+          <View style={styles.subjectMeta}>
+            <Feather name="book-open" size={12} color={subtextColor} />
+            <Text style={[styles.subjectMetaText, { color: subtextColor }]}>{transExamName || t('session2024', 'Session 2024')}</Text>
+          </View>
+          <Text style={[styles.subjectName, { color: textColor }]}>{t('mathematics', 'Mathematics')}</Text>
+        </View>
+        <View style={[styles.scoreBadge, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F0F9FF' }]}>
+          <Text style={styles.scoreText}>{result.score}</Text>
+          <Text style={styles.totalText}>/ {result.total_marks}</Text>
+        </View>
+      </View>
+      
+      <View style={[styles.progressContainer, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
+        <LinearGradient
+          colors={['#0284C7', '#38BDF8']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[styles.progressBar, { width: `${percentage}%` }]}
+        />
+      </View>
+      
+      <View style={styles.resultFooter}>
+        <View style={[styles.statusTag, { backgroundColor: isDark ? statusColor + '30' : statusColor + '20' }]}>
+          <Feather name="star" size={12} color={statusColor} />
+          <Text style={[styles.statusTagText, { color: statusColor }]}>
+            {statusLabel}
+          </Text>
+        </View>
+        <TouchableOpacity style={[styles.detailsButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F8FAFC' }]}>
+          <Feather name="info" size={12} color={subtextColor} />
+          <Text style={[styles.detailsText, { color: subtextColor }]}>{t('details', 'Details')}</Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -74,8 +165,8 @@ const ExamsScreen = () => {
         >
           <View style={[styles.headerTop, { justifyContent: 'space-between', alignItems: 'flex-start' }]}>
             <View>
-              <Text style={[styles.headerTitle, { color: textColor }]}>{t('exams')}</Text>
-              <Text style={[styles.headerSubtitle, { color: subtextColor }]}>Schedule & Performance</Text>
+              <Text style={[styles.headerTitle, { color: textColor }]}>{t('exams', 'Exams')}</Text>
+              <Text style={[styles.headerSubtitle, { color: subtextColor }]}>{t('schedulePerformance', 'Schedule & Performance')}</Text>
             </View>
             <TouchableOpacity
               style={styles.menuButton}
@@ -96,7 +187,7 @@ const ExamsScreen = () => {
             style={[styles.tab, activeTab === 'schedule' ? [styles.tabActive, { backgroundColor: cardColor }] : null]}
           >
             <Feather name="calendar" size={18} color={activeTab === 'schedule' ? '#0284C7' : subtextColor} />
-            <Text style={[styles.tabText, activeTab === 'schedule' ? [styles.tabTextActive, { color: textColor }] : [styles.tabTextInactive, { color: subtextColor }]]}>Schedule</Text>
+            <Text style={[styles.tabText, activeTab === 'schedule' ? [styles.tabTextActive, { color: textColor }] : [styles.tabTextInactive, { color: subtextColor }]]}>{t('schedule', 'Schedule')}</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             onPress={() => setActiveTab('results')}
@@ -120,36 +211,20 @@ const ExamsScreen = () => {
               <View style={[styles.emptyIconBg, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F8FAFC' }]}>
                 <Feather name="calendar" size={48} color={isDark ? '#0284C7' : '#CBD5E1'} />
               </View>
-              <Text style={[styles.emptyTitle, { color: textColor }]}>No Exams Scheduled</Text>
-              <Text style={[styles.emptyDesc, { color: subtextColor }]}>Stay tuned! We'll notify you when the next exam timetable is published.</Text>
+              <Text style={[styles.emptyTitle, { color: textColor }]}>{t('noExamsScheduled', 'No Exams Scheduled')}</Text>
+              <Text style={[styles.emptyDesc, { color: subtextColor }]}>{t('noExamsScheduledDesc', "Stay tuned! We'll notify you when the next exam timetable is published.")}</Text>
             </View>
           ) : (
             exams.map((exam) => (
-              <TouchableOpacity 
-                key={exam.id} 
-                activeOpacity={0.9}
-                style={[styles.examCard, { backgroundColor: cardColor, borderColor }]}
-              >
-                <View style={styles.cardRow}>
-                  <LinearGradient
-                    colors={isDark ? ['#0284C7', '#0369A1'] : ['#F0F9FF', '#E0F2FE']}
-                    style={styles.dateBadge}
-                  >
-                    <Text style={[styles.dateNum, { color: isDark ? '#F0F9FF' : '#0369A1' }]}>{new Date(exam.date).getDate()}</Text>
-                    <Text style={[styles.dateMonth, { color: isDark ? '#E0F2FE' : '#0284C7' }]}>{new Date(exam.date).toLocaleDateString('en-US', { month: 'short' })}</Text>
-                  </LinearGradient>
-                  <View style={styles.examInfo}>
-                    <Text style={[styles.examName, { color: textColor }]}>{exam.name}</Text>
-                    <View style={styles.dayRow}>
-                      <Feather name="trending-up" size={12} color="#0284C7" />
-                      <Text style={[styles.dayText, { color: subtextColor }]}>{new Date(exam.date).toLocaleDateString('en-US', { weekday: 'long' })}</Text>
-                    </View>
-                  </View>
-                  <View style={[styles.chevronBg, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F8FAFC' }]}>
-                    <Feather name="chevron-right" size={18} color={isDark ? '#F1F5F9' : '#CBD5E1'} />
-                  </View>
-                </View>
-              </TouchableOpacity>
+              <ExamScheduleItem
+                key={exam.id}
+                exam={exam}
+                isDark={isDark}
+                cardColor={cardColor}
+                borderColor={borderColor}
+                textColor={textColor}
+                subtextColor={subtextColor}
+              />
             ))
           )
         ) : (
@@ -158,69 +233,22 @@ const ExamsScreen = () => {
               <View style={[styles.emptyIconBg, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F8FAFC' }]}>
                 <Feather name="award" size={48} color={isDark ? '#0284C7' : '#CBD5E1'} />
               </View>
-              <Text style={[styles.emptyTitle, { color: textColor }]}>Results Pending</Text>
-              <Text style={[styles.emptyDesc, { color: subtextColor }]}>Exams are under evaluation. Results will appear here once finalized.</Text>
+              <Text style={[styles.emptyTitle, { color: textColor }]}>{t('resultsPending', 'Results Pending')}</Text>
+              <Text style={[styles.emptyDesc, { color: subtextColor }]}>{t('resultsPendingDesc', 'Exams are under evaluation. Results will appear here once finalized.')}</Text>
             </View>
           ) : (
-            results.map((result) => {
-              const percentage = (result.score / result.total_marks) * 100;
-              let statusColor = '#22C55E';
-              let statusLabel = 'Excellent';
-              if (percentage < 50) {
-                statusColor = '#EF4444';
-                statusLabel = 'Needs Work';
-              } else if (percentage < 75) {
-                statusColor = '#F59E0B';
-                statusLabel = 'Passed';
-              } else if (percentage < 90) {
-                statusLabel = 'Very Good';
-              }
-
-              return (
-                <TouchableOpacity 
-                  key={result.id} 
-                  activeOpacity={0.9}
-                  style={[styles.resultCard, { backgroundColor: cardColor, borderColor }]}
-                >
-                  <View style={styles.resultHeader}>
-                    <View style={styles.subjectInfo}>
-                      <View style={styles.subjectMeta}>
-                        <Feather name="book-open" size={12} color={subtextColor} />
-                        <Text style={[styles.subjectMetaText, { color: subtextColor }]}>{result.exams?.name || 'Session 2024'}</Text>
-                      </View>
-                      <Text style={[styles.subjectName, { color: textColor }]}>Mathematics</Text>
-                    </View>
-                    <View style={[styles.scoreBadge, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F0F9FF' }]}>
-                      <Text style={styles.scoreText}>{result.score}</Text>
-                      <Text style={styles.totalText}>/ {result.total_marks}</Text>
-                    </View>
-                  </View>
-                  
-                  {/* Progress Bar */}
-                  <View style={[styles.progressContainer, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
-                    <LinearGradient
-                      colors={['#0284C7', '#38BDF8']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.progressBar, { width: `${percentage}%` }]}
-                    />
-                  </View>
-                  
-                  <View style={styles.resultFooter}>
-                    <View style={[styles.statusTag, { backgroundColor: isDark ? statusColor + '30' : statusColor + '20' }]}>
-                      <Feather name="star" size={12} color={statusColor} />
-                      <Text style={[styles.statusTagText, { color: statusColor }]}>
-                        {statusLabel}
-                      </Text>
-                    </View>
-                    <TouchableOpacity style={[styles.detailsButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F8FAFC' }]}>
-                      <Feather name="info" size={12} color={subtextColor} />
-                      <Text style={[styles.detailsText, { color: subtextColor }]}>Details</Text>
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
+            results.map((result) => (
+              <ExamResultItem
+                key={result.id}
+                result={result}
+                isDark={isDark}
+                cardColor={cardColor}
+                borderColor={borderColor}
+                textColor={textColor}
+                subtextColor={subtextColor}
+                t={t}
+              />
+            ))
           )
         )}
       </ScrollView>

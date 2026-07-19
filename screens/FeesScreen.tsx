@@ -22,6 +22,7 @@ import * as Sharing from 'expo-sharing';
 import { Alert } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTransliteration } from '../hooks/useTransliteration';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -33,6 +34,8 @@ const FeesScreen = () => {
   const [selectedReceipt, setSelectedReceipt] = useState<{payment: any, fee: FeeRecord} | null>(null);
   const { isDark } = useTheme();
   const { t } = useLanguage();
+  const transSelectedName = useTransliteration(selectedStudent?.name);
+  const transFatherName = useTransliteration(selectedStudent?.father_name);
 
   const bgColor = isDark ? '#0F172A' : '#F8FAFC';
   const headerBg = isDark ? '#1E293B' : '#FFFFFF';
@@ -174,16 +177,18 @@ const FeesScreen = () => {
       return [{
         payment: {
           id: fee.id,
+          fee_id: fee.id,
           amount: fee.paid_amount || fee.amount,
           payment_date: fee.payment_date || fee.created_at,
           payment_mode: 'Cash',
-          remarks: `Paid for: ${fee.month || (fee.months ? fee.months.join(', ') : 'Fees')}`
+          remarks: `Paid for: ${fee.month || (fee.months ? fee.months.join(', ') : 'Fees')}`,
+          created_at: fee.created_at
         },
         fee
       }];
     }
     return [];
-  }).sort((a, b) => new Date(b.payment.payment_date).getTime() - new Date(a.payment.payment_date).getTime());
+  }).sort((a: { payment: any, fee: FeeRecord }, b: { payment: any, fee: FeeRecord }) => new Date(b.payment.payment_date).getTime() - new Date(a.payment.payment_date).getTime());
 
   return (
     <View style={[styles.container, { backgroundColor: bgColor }]}>
@@ -224,23 +229,23 @@ const FeesScreen = () => {
       >
         {/* Fee Details & Payment Section */}
         <View style={styles.feeDetailsContainer}>
-          <Text style={[styles.sectionTitleMain, { color: textColor }]}>Fee Details & Payment</Text>
-          <Text style={[styles.sectionSubtitle, { color: subtextColor }]}>View fee history and record new payments.</Text>
+          <Text style={[styles.sectionTitleMain, { color: textColor }]}>{t('feeDetailsPayment', 'Fee Details & Payment')}</Text>
+          <Text style={[styles.sectionSubtitle, { color: subtextColor }]}>{t('viewFeeHistory', 'View fee history and record new payments.')}</Text>
 
           <View style={[styles.feeDetailsCard, { backgroundColor: cardColor, borderColor }]}>
             <View style={styles.feeDetailsRow}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.feeLabel, { color: subtextColor }]}>Student</Text>
-                <Text style={[styles.feeValue, { color: textColor }]}>{selectedStudent?.name}</Text>
+                <Text style={[styles.feeLabel, { color: subtextColor }]}>{t('student', 'Student')}</Text>
+                <Text style={[styles.feeValue, { color: textColor }]}>{transSelectedName}</Text>
                 <Text style={[styles.feeSubValue, { color: subtextColor }]}>
-                  {selectedStudent?.roll_number} • {selectedStudent?.class}{selectedStudent?.section ? ` ${selectedStudent.section}` : ''}
+                  {selectedStudent?.roll_number} • {t('class')} {selectedStudent?.class}{selectedStudent?.section ? ` ${selectedStudent.section}` : ''}
                 </Text>
               </View>
               <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                <Text style={[styles.feeLabel, { color: subtextColor }]}>Fee Item</Text>
-                <Text style={[styles.feeValue, { color: textColor }]}>Annual fees</Text>
+                <Text style={[styles.feeLabel, { color: subtextColor }]}>{t('feeItem', 'Fee Item')}</Text>
+                <Text style={[styles.feeValue, { color: textColor }]}>{t('annualFees', 'Annual fees')}</Text>
                 <Text style={[styles.feeMonths, { color: subtextColor, textAlign: 'right' }]} numberOfLines={3}>
-                  {fees.length > 0 ? Array.from(new Set(fees.flatMap(f => f.months || (f.month ? [f.month] : [])))).join(', ') || 'Fees' : 'No fees'}
+                  {fees.length > 0 ? Array.from(new Set(fees.flatMap(f => f.months || (f.month ? [f.month] : [])))).join(', ') || t('fees') : t('noFees', 'No fees')}
                 </Text>
               </View>
             </View>
@@ -249,15 +254,15 @@ const FeesScreen = () => {
 
             <View style={styles.feeTotalsRow}>
               <View style={styles.totalCol}>
-                <Text style={[styles.feeLabel, { color: subtextColor }]}>Total Fee</Text>
+                <Text style={[styles.feeLabel, { color: subtextColor }]}>{t('totalFee', 'Total Fee')}</Text>
                 <Text style={[styles.feeTotalValue, { color: textColor }]}>₹ {totalFees.toLocaleString()}</Text>
               </View>
               <View style={styles.totalCol}>
-                <Text style={[styles.feeLabel, { color: subtextColor }]}>Total Paid</Text>
+                <Text style={[styles.feeLabel, { color: subtextColor }]}>{t('totalPaid', 'Total Paid')}</Text>
                 <Text style={[styles.feeTotalValue, { color: '#16a34a' }]}>₹ {totalPaid.toLocaleString()}</Text>
               </View>
               <View style={styles.totalCol}>
-                <Text style={[styles.feeLabel, { color: subtextColor }]}>Pending Due</Text>
+                <Text style={[styles.feeLabel, { color: subtextColor }]}>{t('pendingDue', 'Pending Due')}</Text>
                 <Text style={[styles.feeTotalValue, { color: textColor }]}>₹ {totalOutstanding.toLocaleString()}</Text>
               </View>
             </View>
@@ -268,12 +273,12 @@ const FeesScreen = () => {
         <View style={styles.historyContainer}>
           <View style={styles.historyHeader}>
              <Feather name="clock" size={20} color={textColor} style={{ marginRight: 8 }} />
-             <Text style={[styles.historyTitle, { color: textColor }]}>Payment History</Text>
+             <Text style={[styles.historyTitle, { color: textColor }]}>{t('paymentHistory', 'Payment History')}</Text>
           </View>
           
           {allPayments.length === 0 ? (
             <View style={[styles.emptyCard, { backgroundColor: cardColor, borderColor }]}>
-              <Text style={[styles.emptyTitle, { color: textColor }]}>No Records Found</Text>
+              <Text style={[styles.emptyTitle, { color: textColor }]}>{t('noRecordsFound', 'No Records Found')}</Text>
             </View>
           ) : (
             <View style={styles.timelineContainer}>
@@ -303,7 +308,7 @@ const FeesScreen = () => {
                           </Text>
                         </View>
                         <View style={styles.timelineCardFooter}>
-                           <Text style={[styles.timelineMethod, { color: subtextColor }]}>{payment.payment_mode || 'Cash'}</Text>
+                           <Text style={[styles.timelineMethod, { color: subtextColor }]}>{payment.payment_mode === 'Cash' ? t('cash', 'Cash') : payment.payment_mode}</Text>
                            <TouchableOpacity style={[styles.timelinePdfButton, { borderColor: borderColor }]} onPress={() => generatePDF(item)}>
                              <Feather name="download" size={14} color={textColor} />
                              <Text style={[styles.timelinePdfText, { color: textColor }]}>PDF</Text>
@@ -328,7 +333,7 @@ const FeesScreen = () => {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: cardColor, borderColor }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: textColor }]}>Payment Details</Text>
+              <Text style={[styles.modalTitle, { color: textColor }]}>{t('paymentDetails', 'Payment Details')}</Text>
               <TouchableOpacity onPress={() => setSelectedReceipt(null)}>
                 <Feather name="x" size={24} color={subtextColor} />
               </TouchableOpacity>
@@ -357,22 +362,22 @@ const FeesScreen = () => {
               <View style={[styles.divider, { backgroundColor: borderColor, marginVertical: 15 }]} />
 
               <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: subtextColor }]}>Student Name</Text>
-                <Text style={[styles.detailValue, { color: textColor }]}>{selectedStudent?.name}</Text>
+                <Text style={[styles.detailLabel, { color: subtextColor }]}>{t('studentName', 'Student Name')}</Text>
+                <Text style={[styles.detailValue, { color: textColor }]}>{transSelectedName}</Text>
               </View>
 
               <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: subtextColor }]}>Class & Section</Text>
-                <Text style={[styles.detailValue, { color: textColor }]}>Class {selectedStudent?.class} {selectedStudent?.section ? `- ${selectedStudent.section}` : ''}</Text>
+                <Text style={[styles.detailLabel, { color: subtextColor }]}>{t('classAndSection')}</Text>
+                <Text style={[styles.detailValue, { color: textColor }]}>{t('class')} {selectedStudent?.class} {selectedStudent?.section ? `- ${selectedStudent.section}` : ''}</Text>
               </View>
 
               <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: subtextColor }]}>Father's Name</Text>
-                <Text style={[styles.detailValue, { color: textColor }]}>{selectedStudent?.father_name || 'N/A'}</Text>
+                <Text style={[styles.detailLabel, { color: subtextColor }]}>{t('fathersName', "Father's Name")}</Text>
+                <Text style={[styles.detailValue, { color: textColor }]}>{transFatherName || 'N/A'}</Text>
               </View>
 
               <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: subtextColor }]}>Phone Number</Text>
+                <Text style={[styles.detailLabel, { color: subtextColor }]}>{t('phoneNumber', 'Phone Number')}</Text>
                 <Text style={[styles.detailValue, { color: textColor }]}>{selectedStudent?.parent_phone || 'N/A'}</Text>
               </View>
 

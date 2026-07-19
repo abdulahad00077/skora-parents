@@ -7,6 +7,34 @@ import { getSyllabusByClass, SyllabusItem } from '../services/syllabus';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
+import { useTransliteration } from '../hooks/useTransliteration';
+
+const SyllabusItemCard = ({ item, getSubjectColor, cardBg, borderColor, textColor, subtextColor, isDark, t, styles }: any) => {
+  const transSubject = useTransliteration(item.subject);
+  const transChapterName = useTransliteration(item.chapter_name);
+  const transDescription = useTransliteration(item.description);
+
+  return (
+    <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+      <View style={[styles.subjectBadge, { backgroundColor: getSubjectColor(item.subject) + '20' }]}>
+        <Text style={[styles.subjectText, { color: getSubjectColor(item.subject) }]}>
+          {transSubject ? transSubject.toUpperCase() : item.subject.toUpperCase()}
+        </Text>
+      </View>
+      <Text style={[styles.itemTitle, { color: textColor }]}>{transChapterName}</Text>
+      {item.description ? (
+        <Text style={[styles.itemDesc, { color: subtextColor }]}>{transDescription}</Text>
+      ) : null}
+      
+      {item.attachment_url && (
+        <TouchableOpacity style={[styles.downloadButton, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
+          <Feather name="download" size={16} color="#0284c7" />
+          <Text style={styles.downloadText}>{t('downloadPdf', 'Download PDF')}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
 
 const SyllabusScreen = () => {
   const { selectedStudent } = useStudent();
@@ -72,8 +100,8 @@ const SyllabusScreen = () => {
                 <Feather name="arrow-left" size={24} color={textColor} />
               </TouchableOpacity>
               <View style={{ flex: 1 }}>
-                <Text style={[{ fontSize: 28, fontWeight: '900', letterSpacing: -0.5, color: textColor }]} numberOfLines={1}>Class {selectedStudent.class} Syllabus</Text>
-                <Text style={[{ fontSize: 14, fontWeight: '700', marginTop: 4, color: subtextColor }]}>Academic Year 2026-27</Text>
+                <Text style={[{ fontSize: 28, fontWeight: '900', letterSpacing: -0.5, color: textColor }]} numberOfLines={1}>{t('class', 'Class')} {selectedStudent.class} {t('syllabus', 'Syllabus')}</Text>
+                <Text style={[{ fontSize: 14, fontWeight: '700', marginTop: 4, color: subtextColor }]}>{t('academicYear', 'Academic Year')} 2026-27</Text>
               </View>
             </View>
             <TouchableOpacity 
@@ -92,7 +120,7 @@ const SyllabusScreen = () => {
               onPress={() => setShowDropdown(true)}
             >
               <Text style={{ fontSize: 16, fontWeight: '700', color: textColor }}>
-                {selectedSubject ? selectedSubject.toUpperCase() : 'All Subjects'}
+                {selectedSubject ? selectedSubject.toUpperCase() : t('allSubjects', 'All Subjects')}
               </Text>
               <Feather name="chevron-down" size={20} color={subtextColor} />
             </TouchableOpacity>
@@ -113,7 +141,7 @@ const SyllabusScreen = () => {
         >
           <View style={{ backgroundColor: cardBg, borderRadius: 16, padding: 10, maxHeight: '70%' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: borderColor }}>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: textColor }}>Select Subject</Text>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: textColor }}>{t('selectSubject', 'Select Subject')}</Text>
               <TouchableOpacity onPress={() => setShowDropdown(false)}>
                 <Feather name="x" size={24} color={subtextColor} />
               </TouchableOpacity>
@@ -123,7 +151,7 @@ const SyllabusScreen = () => {
                 style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: borderColor, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
                 onPress={() => { setSelectedSubject(null); setShowDropdown(false); }}
               >
-                <Text style={{ fontSize: 16, fontWeight: selectedSubject === null ? '800' : '500', color: selectedSubject === null ? '#0284c7' : textColor }}>All Subjects</Text>
+                <Text style={{ fontSize: 16, fontWeight: selectedSubject === null ? '800' : '500', color: selectedSubject === null ? '#0284c7' : textColor }}>{t('allSubjects', 'All Subjects')}</Text>
                 {selectedSubject === null && <Feather name="check" size={20} color="#0284c7" />}
               </TouchableOpacity>
               {subjects.map(subject => (
@@ -153,28 +181,22 @@ const SyllabusScreen = () => {
           {filteredSyllabus.length === 0 ? (
             <View style={styles.emptyContainer}>
               <MaterialCommunityIcons name="book-open-blank-variant" size={64} color={subtextColor} style={{ opacity: 0.5 }} />
-              <Text style={[styles.emptyText, { color: textColor }]}>No syllabus found</Text>
+              <Text style={[styles.emptyText, { color: textColor }]}>{t('noSyllabusFound', 'No syllabus found')}</Text>
             </View>
           ) : (
             filteredSyllabus.map((item) => (
-              <View key={item.id} style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-                <View style={[styles.subjectBadge, { backgroundColor: getSubjectColor(item.subject) + '20' }]}>
-                  <Text style={[styles.subjectText, { color: getSubjectColor(item.subject) }]}>
-                    {item.subject.toUpperCase()}
-                  </Text>
-                </View>
-                <Text style={[styles.itemTitle, { color: textColor }]}>{item.chapter_name}</Text>
-                {item.description ? (
-                  <Text style={[styles.itemDesc, { color: subtextColor }]}>{item.description}</Text>
-                ) : null}
-                
-                {item.attachment_url && (
-                  <TouchableOpacity style={[styles.downloadButton, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
-                    <Feather name="download" size={16} color="#0284c7" />
-                    <Text style={styles.downloadText}>Download PDF</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+              <SyllabusItemCard
+                key={item.id}
+                item={item}
+                getSubjectColor={getSubjectColor}
+                cardBg={cardBg}
+                borderColor={borderColor}
+                textColor={textColor}
+                subtextColor={subtextColor}
+                isDark={isDark}
+                t={t}
+                styles={styles}
+              />
             ))
           )}
         </ScrollView>

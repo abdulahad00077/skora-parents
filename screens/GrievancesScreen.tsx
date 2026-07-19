@@ -19,6 +19,25 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTransliteration } from '../hooks/useTransliteration';
+
+const GrievanceItem = ({ grievance, cardColor, borderColor, textColor, subtextColor, styles }: any) => {
+  const transMessage = useTransliteration(grievance.message);
+
+  return (
+    <View style={[styles.grievanceCard, { backgroundColor: cardColor, borderColor }]}>
+      <View style={styles.grievanceHeader}>
+        <Feather name="alert-circle" size={18} color="#0284C7" />
+        <Text style={[styles.grievanceDate, { color: subtextColor }]}>
+          {new Date(grievance.created_at).toLocaleDateString()}
+        </Text>
+      </View>
+      <Text style={[styles.grievanceMessage, { color: textColor }]}>
+        {transMessage}
+      </Text>
+    </View>
+  );
+};
 
 const GrievancesScreen = () => {
   const navigation = useNavigation();
@@ -75,7 +94,7 @@ const GrievancesScreen = () => {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: bgColor }]}>
         <ActivityIndicator size="large" color="#0284c7" />
-        <Text style={[styles.loadingText, { color: subtextColor }]}>Loading Grievances...</Text>
+        <Text style={[styles.loadingText, { color: subtextColor }]}>{t('loadingGrievances', 'Loading Grievances...')}</Text>
       </View>
     );
   }
@@ -98,8 +117,8 @@ const GrievancesScreen = () => {
             </TouchableOpacity>
             
             <View style={styles.headerTitleContainer}>
-              <Text style={[styles.headerTitle, { color: textColor }]}>Grievances</Text>
-              <Text style={[styles.headerSubtitle, { color: subtextColor }]}>Report Issues</Text>
+              <Text style={[styles.headerTitle, { color: textColor }]}>{t('grievances', 'Grievances')}</Text>
+              <Text style={[styles.headerSubtitle, { color: subtextColor }]}>{t('reportIssues', 'Report Issues')}</Text>
             </View>
 
             <TouchableOpacity
@@ -118,12 +137,12 @@ const GrievancesScreen = () => {
         contentContainerStyle={styles.scrollContent}
       >
         <View style={[styles.formCard, { backgroundColor: cardColor, borderColor }]}>
-          <Text style={[styles.formTitle, { color: textColor }]}>Submit New Grievance</Text>
-          <Text style={[styles.formSubtitle, { color: subtextColor }]}>Only one grievance can be submitted per day on behalf of the student.</Text>
+          <Text style={[styles.formTitle, { color: textColor }]}>{t('submitNewGrievance', 'Submit New Grievance')}</Text>
+          <Text style={[styles.formSubtitle, { color: subtextColor }]}>{t('grievanceLimitDesc', 'Only one grievance can be submitted per day on behalf of the student.')}</Text>
           
           <TextInput
             style={[styles.input, { backgroundColor: inputBg, color: textColor, borderColor }]}
-            placeholder="Describe the issue in detail..."
+            placeholder={t('describeIssue', 'Describe the issue in detail...')}
             placeholderTextColor={subtextColor}
             multiline
             numberOfLines={4}
@@ -141,35 +160,33 @@ const GrievancesScreen = () => {
             ) : (
               <>
                 <Feather name="send" size={18} color="#FFF" style={styles.submitIcon} />
-                <Text style={styles.submitButtonText}>Submit Grievance</Text>
+                <Text style={styles.submitButtonText}>{t('submitGrievanceBtn', 'Submit Grievance')}</Text>
               </>
             )}
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.sectionTitle, { color: textColor }]}>Past Grievances</Text>
+        <Text style={[styles.sectionTitle, { color: textColor }]}>{t('pastGrievances', 'Past Grievances')}</Text>
 
         {grievances.length === 0 ? (
           <View style={[styles.emptyCard, { backgroundColor: cardColor, borderColor }]}>
             <View style={[styles.emptyIconBg, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F8FAFC' }]}>
               <Feather name="inbox" size={48} color={isDark ? '#0284C7' : '#CBD5E1'} />
             </View>
-            <Text style={[styles.emptyTitle, { color: textColor }]}>No Grievances</Text>
-            <Text style={[styles.emptyDesc, { color: subtextColor }]}>You haven't submitted any grievances yet.</Text>
+            <Text style={[styles.emptyTitle, { color: textColor }]}>{t('noGrievances', 'No Grievances')}</Text>
+            <Text style={[styles.emptyDesc, { color: subtextColor }]}>{t('noGrievancesDesc', "You haven't submitted any grievances yet.")}</Text>
           </View>
         ) : (
           grievances.map((grievance) => (
-            <View key={grievance.id} style={[styles.grievanceCard, { backgroundColor: cardColor, borderColor }]}>
-              <View style={styles.grievanceHeader}>
-                <Feather name="alert-circle" size={18} color="#0284C7" />
-                <Text style={[styles.grievanceDate, { color: subtextColor }]}>
-                  {new Date(grievance.created_at).toLocaleDateString()}
-                </Text>
-              </View>
-              <Text style={[styles.grievanceMessage, { color: textColor }]}>
-                {grievance.message}
-              </Text>
-            </View>
+            <GrievanceItem
+              key={grievance.id}
+              grievance={grievance}
+              cardColor={cardColor}
+              borderColor={borderColor}
+              textColor={textColor}
+              subtextColor={subtextColor}
+              styles={styles}
+            />
           ))
         )}
       </ScrollView>

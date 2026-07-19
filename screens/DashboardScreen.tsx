@@ -14,7 +14,9 @@ import {
   Dimensions 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { transliterateToHindi } from '../services/transliteration';
 import { useStudent } from '../hooks/useStudent';
+import { useTransliteration } from '../hooks/useTransliteration';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,12 +30,51 @@ import { getStudentMessages } from '../services/messages';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+const ModalStudentItem = ({ student, isActive, isDark, bgColor, borderColor, textColor, subtextColor, t, onPress }: any) => {
+  const transName = useTransliteration(student.name);
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[
+        styles.studentItem, 
+        { 
+          backgroundColor: isActive ? (isDark ? 'rgba(2, 132, 199, 0.2)' : '#F0F9FF') : bgColor,
+          borderColor: isActive ? '#0284C7' : borderColor 
+        }
+      ]}
+    >
+      <View style={[
+        styles.itemAvatar,
+        isActive ? { backgroundColor: '#0284C7' } : { backgroundColor: isDark ? '#334155' : '#F1F5F9' }
+      ]}>
+        <Text style={[
+          styles.itemAvatarText,
+          isActive ? { color: '#FFFFFF' } : { color: subtextColor }
+        ]}>
+          {transName?.charAt(0) || 'S'}
+        </Text>
+      </View>
+      <View style={styles.itemInfo}>
+        <Text style={[
+          styles.itemName,
+          { color: isActive ? '#0284C7' : textColor }
+        ]}>
+          {transName}
+        </Text>
+        <Text style={[styles.itemClass, { color: subtextColor }]}>{t('class')} {student.class}</Text>
+      </View>
+      {isActive && <View style={styles.checkBadge}><Feather name="check" size={14} color="white" /></View>}
+    </TouchableOpacity>
+  );
+};
+
 const DashboardScreen = () => {
   const { students, selectedStudent, selectStudent, loading, refreshStudents } = useStudent();
   const navigation = useNavigation();
   const { signOut } = useAuth();
   const { isDark } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const transSelectedName = useTransliteration(selectedStudent?.name);
   const [refreshing, setRefreshing] = useState(false);
   const [showSwitchModal, setShowSwitchModal] = useState(false);
 
@@ -90,8 +131,8 @@ const DashboardScreen = () => {
       // 4. Populate Recent Activity (Map top 2 messages + top 2 homeworks)
       const topMsgs = msgData.slice(0, 2).map((m: any) => ({
         id: 'msg_' + m.id,
-        title: 'New Message',
-        desc: m.message_text || m.message || 'You have a new message.',
+        title: language === 'hi' ? 'नया संदेश' : 'New Message',
+        desc: m.message_text || m.message || (language === 'hi' ? 'आपके पास एक नया संदेश है।' : 'You have a new message.'),
         date: new Date(m.created_at),
         icon: 'message-circle',
         color: '#8B5CF6'
@@ -99,7 +140,7 @@ const DashboardScreen = () => {
       
       const topHw = hwData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 2).map(h => ({
         id: 'hw_' + h.id,
-        title: 'New Homework: ' + (h.title || 'Assignment'),
+        title: (language === 'hi' ? 'नया होमवर्क: ' : 'New Homework: ') + (h.title || 'Assignment'),
         desc: h.title,
         date: new Date(h.created_at),
         icon: 'book',
@@ -109,6 +150,13 @@ const DashboardScreen = () => {
       const combined = [...topMsgs, ...topHw]
         .sort((a, b) => b.date.getTime() - a.date.getTime())
         .slice(0, 2);
+
+      if (language === 'hi') {
+        for (let item of combined) {
+          if (item.desc) item.desc = await transliterateToHindi(item.desc);
+          if (item.title && item.title.includes('नया होमवर्क')) item.title = await transliterateToHindi(item.title);
+        }
+      }
         
       setRecentUpdates(combined);
     } catch (err) {
@@ -116,7 +164,7 @@ const DashboardScreen = () => {
     } finally {
       setMetricsLoading(false);
     }
-  }, [selectedStudent]);
+  }, [selectedStudent, language]);
 
   React.useEffect(() => {
     fetchDashboardMetrics();
@@ -152,12 +200,12 @@ const DashboardScreen = () => {
               style={[styles.studentSelector, { backgroundColor: bgColor, borderColor: borderColor }]}
             >
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{selectedStudent.name.charAt(0)}</Text>
+                <Text style={styles.avatarText}>{transSelectedName?.charAt(0) || 'S'}</Text>
               </View>
               <View style={styles.studentInfo}>
-                <Text style={[styles.studentLabel, { color: subtextColor }]}>STUDENT PROFILE</Text>
+                <Text style={[styles.studentLabel, { color: subtextColor }]}>{t('studentProfile', 'STUDENT PROFILE').toUpperCase()}</Text>
                 <View style={styles.studentNameRow}>
-                  <Text style={[styles.studentName, { color: textColor }]} numberOfLines={1}>{selectedStudent.name}</Text>
+                  <Text style={[styles.studentName, { color: textColor }]} numberOfLines={1}>{transSelectedName}</Text>
                   {students.length > 1 && <Feather name="chevron-down" size={14} color={subtextColor} />}
                 </View>
               </View>
@@ -194,7 +242,7 @@ const DashboardScreen = () => {
               
               <View style={styles.cardHeader}>
                 <View>
-                  <Text style={styles.cardLabel}>CURRENT CLASS</Text>
+                  <Text style={styles.cardLabel}>{t('currentClass', 'CURRENT CLASS').toUpperCase()}</Text>
                   <Text style={styles.cardTitle}>
                     {selectedStudent.class}{selectedStudent.section ? ` - ${selectedStudent.section}` : ''}
                   </Text>
@@ -211,9 +259,9 @@ const DashboardScreen = () => {
                     <MaterialCommunityIcons name="school-outline" size={20} color="#FFFFFF" />
                   </View>
                   <View style={{ marginLeft: 12 }}>
-                    <Text style={styles.footerLabel}>Active Enrollment</Text>
+                    <Text style={styles.footerLabel}>{t('activeEnrollment', 'Active Enrollment')}</Text>
                     <Text style={styles.sessionText}>
-                      {selectedStudent.session || 'Academic Year 2026-27'}
+                      {selectedStudent.session || t('academicYear', 'Academic Year 2026-27')}
                     </Text>
                   </View>
                 </View>
@@ -254,7 +302,7 @@ const DashboardScreen = () => {
               <Text style={[styles.statValue, { color: textColor }]}>
                 {metricsLoading ? '--:--' : nextClass}
               </Text>
-              <Text style={[styles.statLabel, { color: subtextColor }]}>NEXT CLASS</Text>
+              <Text style={[styles.statLabel, { color: subtextColor }]}>{t('nextClass', 'NEXT CLASS').toUpperCase()}</Text>
             </View>
           </View>
 
@@ -266,7 +314,7 @@ const DashboardScreen = () => {
           {metricsLoading ? (
              <ActivityIndicator style={{ marginVertical: 30 }} size="large" color="#0284c7" />
           ) : recentUpdates.length === 0 ? (
-             <Text style={[styles.statLabel, { color: subtextColor, textAlign: 'center', marginVertical: 20 }]}>No recent activity found.</Text>
+             <Text style={[styles.statLabel, { color: subtextColor, textAlign: 'center', marginVertical: 20 }]}>{t('noRecentActivity', 'No recent activity found.')}</Text>
           ) : (
             recentUpdates.map((update, idx) => (
               <View key={update.id} style={[styles.updateCard, { backgroundColor: cardColor, borderColor, marginBottom: idx === recentUpdates.length - 1 ? 0 : 12 }]}>
@@ -308,47 +356,26 @@ const DashboardScreen = () => {
         >
           <View style={[styles.modalContent, { backgroundColor: cardColor }]}>
             <View style={[styles.modalHandle, { backgroundColor: isDark ? '#475569' : '#E2E8F0' }]} />
-            <Text style={[styles.modalTitle, { color: textColor }]}>Switch Student Profile</Text>
+            <Text style={[styles.modalTitle, { color: textColor }]}>{t('switchStudentProfile', 'Switch Student Profile')}</Text>
             
             {students.map((student) => {
               const isActive = student.id === selectedStudent.id;
               return (
-                <TouchableOpacity
+                <ModalStudentItem
                   key={student.id}
+                  student={student}
+                  isActive={isActive}
+                  isDark={isDark}
+                  bgColor={bgColor}
+                  borderColor={borderColor}
+                  textColor={textColor}
+                  subtextColor={subtextColor}
+                  t={t}
                   onPress={() => {
                     selectStudent(student);
                     setShowSwitchModal(false);
                   }}
-                  style={[
-                    styles.studentItem, 
-                    { 
-                      backgroundColor: isActive ? (isDark ? 'rgba(2, 132, 199, 0.2)' : '#F0F9FF') : bgColor,
-                      borderColor: isActive ? '#0284C7' : borderColor 
-                    }
-                  ]}
-                >
-                  <View style={[
-                    styles.itemAvatar,
-                    isActive ? { backgroundColor: '#0284C7' } : { backgroundColor: isDark ? '#334155' : '#F1F5F9' }
-                  ]}>
-                    <Text style={[
-                      styles.itemAvatarText,
-                      isActive ? { color: '#FFFFFF' } : { color: subtextColor }
-                    ]}>
-                      {student.name.charAt(0)}
-                    </Text>
-                  </View>
-                  <View style={styles.itemInfo}>
-                    <Text style={[
-                      styles.itemName,
-                      { color: isActive ? '#0284C7' : textColor }
-                    ]}>
-                      {student.name}
-                    </Text>
-                    <Text style={[styles.itemClass, { color: subtextColor }]}>Class {student.class}</Text>
-                  </View>
-                  {isActive && <View style={styles.checkBadge}><Feather name="check" size={14} color="white" /></View>}
-                </TouchableOpacity>
+                />
               );
             })}
             
