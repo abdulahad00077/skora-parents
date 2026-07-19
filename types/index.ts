@@ -65,6 +65,7 @@ export interface Exam {
   school_id: string;
   name: string;
   date: string;
+  subject?: string;
 }
 
 export interface ExamResult {

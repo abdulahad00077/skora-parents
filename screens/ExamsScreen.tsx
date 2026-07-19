@@ -52,6 +52,7 @@ const ExamScheduleItem = ({ exam, isDark, cardColor, borderColor, textColor, sub
 
 const ExamResultItem = ({ result, isDark, cardColor, borderColor, textColor, subtextColor, t }: any) => {
   const transExamName = useTransliteration(result.exams?.name);
+  const transSubjectName = useTransliteration(result.exams?.subject);
   
   const percentage = (result.score / result.total_marks) * 100;
   let statusColor = '#22C55E';
@@ -77,7 +78,7 @@ const ExamResultItem = ({ result, isDark, cardColor, borderColor, textColor, sub
             <Feather name="book-open" size={12} color={subtextColor} />
             <Text style={[styles.subjectMetaText, { color: subtextColor }]}>{transExamName || t('session2024', 'Session 2024')}</Text>
           </View>
-          <Text style={[styles.subjectName, { color: textColor }]}>{t('mathematics', 'Mathematics')}</Text>
+          <Text style={[styles.subjectName, { color: textColor }]}>{transSubjectName || result.exams?.subject || t('mathematics', 'Mathematics')}</Text>
         </View>
         <View style={[styles.scoreBadge, { backgroundColor: isDark ? 'rgba(2,132,199,0.2)' : '#F0F9FF' }]}>
           <Text style={styles.scoreText}>{result.score}</Text>
