@@ -4,26 +4,50 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'app.json'
+  workflow_dispatch: # Allow manual trigger as backup
 
 jobs:
   build:
     name: EAS Build and GitHub Release
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required for creating releases
+      contents: write
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Required to generate changelog from commits
+          fetch-depth: 2 # Need previous commit to compare versions
+
+      - name: Check if version changed
+        id: version_check
+        run: |
+          CURRENT_VERSION=$(node -p "require('./app.json').expo.version")
+          # Get version from previous commit
+          PREV_VERSION=$(git show HEAD~1:app.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).expo.version" 2>/dev/null || echo "")
+          
+          echo "Current version: $CURRENT_VERSION"
+          echo "Previous version: $PREV_VERSION"
+          
+          if [ "$CURRENT_VERSION" = "$PREV_VERSION" ]; then
+            echo "VERSION_CHANGED=false" >> $GITHUB_ENV
+            echo "⏭️ Version unchanged ($CURRENT_VERSION). Skipping build."
+          else
+            echo "VERSION_CHANGED=true" >> $GITHUB_ENV
+            echo "VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+            echo "🚀 Version changed from $PREV_VERSION to $CURRENT_VERSION. Building!"
+          fi
 
       - name: Setup Node.js
+        if: env.VERSION_CHANGED == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Setup Expo and EAS
+        if: env.VERSION_CHANGED == 'true'
         uses: expo/expo-github-action@v8
         with:
           expo-version: latest
@@ -32,22 +56,18 @@ jobs:
           packager: npm
 
       - name: Install dependencies
+        if: env.VERSION_CHANGED == 'true'
         run: npm ci
 
-      - name: Extract App Version
-        id: extract_version
-        run: |
-          VERSION=$(node -p "require('./app.json').expo.version")
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Extracted version: $VERSION"
-
       - name: Setup Java
+        if: env.VERSION_CHANGED == 'true'
         uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
           java-version: '17'
 
       - name: Build Locally on GitHub Runner
+        if: env.VERSION_CHANGED == 'true'
         id: build
         env:
           NODE_OPTIONS: --max-old-space-size=8192
@@ -55,6 +75,7 @@ jobs:
           eas build --platform android --profile preview --local --non-interactive --clear-cache --output app-release.apk
 
       - name: Generate Changelog
+        if: env.VERSION_CHANGED == 'true'
         id: changelog
         run: |
           PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
@@ -68,10 +89,11 @@ jobs:
           cat changelog.txt
 
       - name: Create GitHub Release
+        if: env.VERSION_CHANGED == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ env.VERSION }}-build.${{ github.run_number }}
-          name: Skora Connect v${{ env.VERSION }} (Build ${{ github.run_number }})
+          tag_name: v${{ env.VERSION }}
+          name: v${{ env.VERSION }}
           body_path: changelog.txt
           files: app-release.apk
           make_latest: true
