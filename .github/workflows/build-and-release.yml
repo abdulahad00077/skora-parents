@@ -48,6 +48,9 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
+      - name: Debug Metro Bundler
+        run: npx expo export -p android
+
       - name: Build Locally on GitHub Runner
         id: build
         env:
