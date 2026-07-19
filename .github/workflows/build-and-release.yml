@@ -1,0 +1,80 @@
+name: Build and Release Android APK
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: EAS Build and GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required for creating releases
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required to generate changelog from commits
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Extract App Version
+        id: extract_version
+        run: |
+          # Extracts the version from app.json
+          VERSION=$(node -p "require('./app.json').expo.version")
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Extracted version: $VERSION"
+
+      - name: Build on EAS
+        id: build
+        run: |
+          eas build --platform android --profile preview --non-interactive --json > build_output.json
+          APK_URL=$(jq -r '.[] | select(.platform=="ANDROID") | .artifacts.buildUrl' build_output.json)
+          echo "APK URL: $APK_URL"
+          echo "APK_URL=$APK_URL" >> $GITHUB_ENV
+
+      - name: Download APK
+        run: |
+          wget -O app-release.apk ${{ env.APK_URL }}
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          # Get commits since last tag
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"- %s" -n 10)
+          else
+            COMMITS=$(git log --pretty=format:"- %s" $PREV_TAG..HEAD)
+          fi
+          # Write to file
+          echo "### What's New" > changelog.txt
+          echo "$COMMITS" >> changelog.txt
+          cat changelog.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Version ${{ env.VERSION }}
+          body_path: changelog.txt
+          files: app-release.apk
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
