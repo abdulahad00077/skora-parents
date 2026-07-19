@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "SKORA for Parents",
+    "name": "Skora Connect",
     "slug": "skora-parents",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.jpeg",
+    "icon": "./assets/icon.png",
     "scheme": "skora-parents",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash-icon.jpeg",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -19,7 +19,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
-        "foregroundImage": "./assets/apdaptive-icon.jpeg"
+        "foregroundImage": "./assets/adaptive-icon.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.skora.parents",
@@ -48,10 +48,10 @@
       "@react-native-community/datetimepicker"
     ],
     "notification": {
-      "icon": "./assets/icon.jpeg",
+      "icon": "./assets/icon.png",
       "color": "#0284C7",
       "androidMode": "default",
-      "androidCollapsedTitle": "SKORA for Parents"
+      "androidCollapsedTitle": "Skora Connect"
     }
   }
 }

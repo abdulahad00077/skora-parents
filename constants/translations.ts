@@ -41,7 +41,7 @@ export const translations = {
     english: "English",
     hindi: "हिन्दी (Hindi)",
     securityAndPrivacy: "Security & Privacy",
-    aboutEdutrack: "About SKORA",
+    aboutEdutrack: "About Skora Connect",
     appearance: "Appearance",
     general: "General",
 
@@ -344,7 +344,7 @@ export const translations = {
     english: "English",
     hindi: "हिन्दी (Hindi)",
     securityAndPrivacy: "सुरक्षा और गोपनीयता",
-    aboutEdutrack: "SKORA के बारे में",
+    aboutEdutrack: "Skora Connect के बारे में",
     appearance: "दिखावट",
     general: "सामान्य",
 

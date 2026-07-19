@@ -556,7 +556,7 @@ const LoginScreen = () => {
             <Feather name={isDark ? "sun" : "moon"} size={24} color={textColor} />
           </TouchableOpacity>
         </View>
-        <Text style={[styles.brandName, { color: textColor }]}>SKORA</Text>
+        <Text style={[styles.brandName, { color: textColor }]}>Skora Connect</Text>
         <View style={[styles.portalBadge, { backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : '#E0F2FE', borderWidth: 0 }]}>
           <Text style={[styles.portalText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>{t('loginPortal', 'LOGIN PORTAL')}</Text>
         </View>
