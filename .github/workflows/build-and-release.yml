@@ -50,8 +50,10 @@ jobs:
 
       - name: Build Locally on GitHub Runner
         id: build
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
         run: |
-          eas build --platform android --profile preview --local --non-interactive --output app-release.apk
+          eas build --platform android --profile preview --local --non-interactive --clear-cache --output app-release.apk
 
       - name: Generate Changelog
         id: changelog
