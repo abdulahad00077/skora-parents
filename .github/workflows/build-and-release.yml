@@ -42,17 +42,16 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "Extracted version: $VERSION"
 
-      - name: Build on EAS
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Build Locally on GitHub Runner
         id: build
         run: |
-          eas build --platform android --profile preview --non-interactive --json > build_output.json
-          APK_URL=$(jq -r '.[] | select(.platform=="ANDROID") | .artifacts.buildUrl' build_output.json)
-          echo "APK URL: $APK_URL"
-          echo "APK_URL=$APK_URL" >> $GITHUB_ENV
-
-      - name: Download APK
-        run: |
-          wget -O app-release.apk ${{ env.APK_URL }}
+          eas build --platform android --profile preview --local --non-interactive --output app-release.apk
 
       - name: Generate Changelog
         id: changelog
