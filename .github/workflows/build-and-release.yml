@@ -71,6 +71,7 @@ jobs:
         id: build
         env:
           NODE_OPTIONS: --max-old-space-size=8192
+          _JAVA_OPTIONS: -XX:MaxMetaspaceSize=1g -Xmx3g
         run: |
           eas build --platform android --profile preview --local --non-interactive --clear-cache --output app-release.apk
 
