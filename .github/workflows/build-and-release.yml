@@ -75,19 +75,7 @@ jobs:
         run: |
           eas build --platform android --profile preview --local --non-interactive --clear-cache --output app-release.apk
 
-      - name: Generate Changelog
-        if: env.VERSION_CHANGED == 'true'
-        id: changelog
-        run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [ -z "$PREV_TAG" ]; then
-            COMMITS=$(git log --pretty=format:"- %s" -n 10)
-          else
-            COMMITS=$(git log --pretty=format:"- %s" $PREV_TAG..HEAD)
-          fi
-          echo "### What's New" > changelog.txt
-          echo "$COMMITS" >> changelog.txt
-          cat changelog.txt
+
 
       - name: Create GitHub Release
         if: env.VERSION_CHANGED == 'true'
@@ -95,7 +83,6 @@ jobs:
         with:
           tag_name: v${{ env.VERSION }}
           name: v${{ env.VERSION }}
-          body_path: changelog.txt
           files: app-release.apk
           make_latest: true
         env:
