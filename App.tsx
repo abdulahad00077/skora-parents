@@ -44,10 +44,68 @@ Notifications.setNotificationHandler({
 import { LanguageProvider } from './contexts/LanguageContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 
+import { useEffect } from 'react';
+import { Alert, Linking } from 'react-native';
+import Constants from 'expo-constants';
+
 const AppContent = () => {
   const { user } = useAuth();
   useNotifications(user?.id);
   useRealtimeNotifications();
+
+  useEffect(() => {
+    const checkForUpdate = async () => {
+      try {
+        const response = await fetch('https://api.github.com/repos/AbdulAhad0007/edutrack-parents-main/releases/latest');
+        const data = await response.json();
+        
+        if (data.tag_name) {
+          const latestVersion = data.tag_name.replace('v', '');
+          const currentVersion = Constants.expoConfig?.version || '1.0.0';
+          
+          const v1Parts = latestVersion.split('.').map(Number);
+          const v2Parts = currentVersion.split('.').map(Number);
+          
+          let isNewer = false;
+          for (let i = 0; i < Math.max(v1Parts.length, v2Parts.length); i++) {
+            const p1 = v1Parts[i] || 0;
+            const p2 = v2Parts[i] || 0;
+            if (p1 > p2) {
+              isNewer = true;
+              break;
+            }
+            if (p1 < p2) {
+              break;
+            }
+          }
+          
+          if (isNewer) {
+            Alert.alert(
+              'Update Available',
+              `A new version (${latestVersion}) of Skora Connect is available. Please update the app.`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                  text: 'Update Now', 
+                  onPress: () => {
+                    const devStoreUrl = 'https://play-store-devfordevs.vercel.app/app/skora-connect-app'; 
+                    Linking.openURL(devStoreUrl).catch(err => {
+                      console.error("Couldn't open devstore:", err);
+                      Linking.openURL('https://github.com/AbdulAhad0007/edutrack-parents-main/releases/latest');
+                    });
+                  }
+                }
+              ]
+            );
+          }
+        }
+      } catch (error) {
+        console.error('Error checking for updates:', error);
+      }
+    };
+
+    checkForUpdate();
+  }, []);
   
   return <RootNavigator />;
 };
