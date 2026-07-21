@@ -167,3 +167,13 @@ export interface TransportLog {
   timestamp: string;
   created_at?: string;
 }
+
+export interface TransportException {
+  id: string;
+  student_id: string;
+  school_id: string;
+  date: string;
+  exception_type: 'absent' | 'parent_drop';
+  reason?: string;
+  created_at?: string;
+}

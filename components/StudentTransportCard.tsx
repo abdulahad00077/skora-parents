@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated, ActivityIndicator, 
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { Student } from '../types';
+import { Student, TransportException } from '../types';
 import { transliterateToHindi } from '../services/transliteration';
 
 type Props = {
@@ -12,9 +12,11 @@ type Props = {
   onDropConfirmed: (student: Student) => void;
   initialPickupState?: boolean;
   initialDropState?: boolean;
+  exceptionData?: TransportException | null;
+  shift?: 'morning' | 'evening';
 };
 
-const StudentTransportCard = ({ student, onPickupConfirmed, onDropConfirmed, initialPickupState = false, initialDropState = false }: Props) => {
+const StudentTransportCard = ({ student, onPickupConfirmed, onDropConfirmed, initialPickupState = false, initialDropState = false, exceptionData, shift }: Props) => {
   const { isDark } = useTheme();
   const { t, language } = useLanguage();
   const [pickupChecked, setPickupChecked] = useState(initialPickupState);
@@ -142,6 +144,14 @@ const StudentTransportCard = ({ student, onPickupConfirmed, onDropConfirmed, ini
         )}
       </View>
 
+      {exceptionData?.exception_type === 'absent' || (exceptionData?.exception_type === 'parent_drop' && shift === 'morning') ? (
+        <View style={{ backgroundColor: '#EF444420', padding: 8, borderRadius: 8, marginBottom: 12, alignItems: 'center' }}>
+          <Text style={{ color: '#EF4444', fontWeight: 'bold' }}>
+            {exceptionData.exception_type === 'absent' ? 'On leave today' : 'Parent will drop today'}
+          </Text>
+        </View>
+      ) : null}
+
       {timerActive && (
         <View style={styles.timerContainer}>
           <View style={styles.timerHeader}>
@@ -177,7 +187,12 @@ const StudentTransportCard = ({ student, onPickupConfirmed, onDropConfirmed, ini
             (pickupChecked || initialPickupState) && !timerActive && styles.actionBtnActivePickup
           ]}
           onPress={handleTogglePickup}
-          disabled={(initialPickupState && timerActive !== 'pickup') || (pickupChecked && timerActive !== 'pickup')}
+          disabled={
+            (initialPickupState && timerActive !== 'pickup') || 
+            (pickupChecked && timerActive !== 'pickup') ||
+            (exceptionData?.exception_type === 'absent') ||
+            (exceptionData?.exception_type === 'parent_drop' && shift === 'morning')
+          }
         >
           <View style={[styles.checkbox, (pickupChecked || initialPickupState) && styles.checkboxActivePickup]}>
             {(pickupChecked || initialPickupState) && <Feather name="check" size={14} color="#FFF" />}
@@ -198,7 +213,9 @@ const StudentTransportCard = ({ student, onPickupConfirmed, onDropConfirmed, ini
           disabled={
             (!pickupChecked && !initialPickupState) || 
             (initialDropState && timerActive !== 'drop') || 
-            (dropChecked && timerActive !== 'drop')
+            (dropChecked && timerActive !== 'drop') ||
+            (exceptionData?.exception_type === 'absent') ||
+            (exceptionData?.exception_type === 'parent_drop' && shift === 'morning')
           }
         >
           <View style={[styles.checkbox, (dropChecked || initialDropState) && styles.checkboxActiveDrop]}>

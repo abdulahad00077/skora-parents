@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, Dimensions, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, Dimensions, TouchableOpacity, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { Student } from '../types';
-import { getDriverAssignedStudents, logTransportAction, getTodayTransportLogs } from '../services/transport';
+import { Student, TransportException } from '../types';
+import { getDriverAssignedStudents, logTransportAction, getTodayTransportLogs, getTransportExceptionsByDate } from '../services/transport';
 import StudentTransportCard from '../components/StudentTransportCard';
 import { transliterateToHindi } from '../services/transliteration';
 
@@ -22,7 +23,10 @@ const DriverDashboardScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({ total: 0, pickedUp: 0, dropped: 0 });
   const [studentStatuses, setStudentStatuses] = useState<Record<string, { pickedUp: boolean, dropped: boolean }>>({});
+  const [exceptions, setExceptions] = useState<Record<string, TransportException>>({});
   const [displayVehicleName, setDisplayVehicleName] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const currentHour = new Date().getHours();
   const [shift, setShift] = useState<'morning' | 'evening'>(currentHour < 12 ? 'morning' : 'evening');
@@ -43,7 +47,13 @@ const DriverDashboardScreen = () => {
       setStudents(assignedStudents);
 
       // Fetch ALL logs for the school today
-      const todayLogs = await getTodayTransportLogs(driver.school_id);
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      const todayLogs = await getTodayTransportLogs(driver.school_id, selectedDate);
+      
+      const dayExceptions = await getTransportExceptionsByDate(driver.school_id, dateStr);
+      const exceptionsMap: Record<string, TransportException> = {};
+      dayExceptions.forEach(e => exceptionsMap[e.student_id] = e);
+      setExceptions(exceptionsMap);
 
       // Map to get latest log per student
       const latestLogsByStudent: Record<string, any> = {};
@@ -89,7 +99,7 @@ const DriverDashboardScreen = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [driver, shift]);
+  }, [driver, shift, selectedDate]);
 
   useEffect(() => {
     fetchData();
@@ -165,12 +175,32 @@ const DriverDashboardScreen = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['top']}>
       <View style={styles.header}>
         <View>
-          <Text style={[styles.title, { color: textColor }]}>{t('todaysRoute', "Today's Route")}</Text>
+          <Text style={[styles.title, { color: textColor }]}>
+            {selectedDate.toDateString() === new Date().toDateString() ? t('todaysRoute', "Today's Route") : selectedDate.toLocaleDateString()}
+          </Text>
           <Text style={[styles.subtitle, { color: subtextColor }]}>
             {displayVehicleName || driver?.vehicle_name} • {driver?.vehicle_number}
           </Text>
         </View>
+        <TouchableOpacity onPress={() => setShowDatePicker(true)} style={{ padding: 8 }}>
+          <Feather name="calendar" size={24} color={textColor} />
+        </TouchableOpacity>
       </View>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={selectedDate}
+          mode="date"
+          display="default"
+          maximumDate={new Date()}
+          onChange={(event, date) => {
+            setShowDatePicker(Platform.OS === 'ios');
+            if (date) {
+              setSelectedDate(date);
+            }
+          }}
+        />
+      )}
 
       <View style={styles.switcherContainer}>
         <TouchableOpacity 
@@ -214,6 +244,8 @@ const DriverDashboardScreen = () => {
             student={item}
             initialPickupState={studentStatuses[item.id]?.pickedUp}
             initialDropState={studentStatuses[item.id]?.dropped}
+            exceptionData={exceptions[item.id] || null}
+            shift={shift}
             onPickupConfirmed={handlePickupConfirmed}
             onDropConfirmed={handleDropConfirmed}
           />

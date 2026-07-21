@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Student, TransportLog } from '../types';
+import { Student, TransportLog, TransportException } from '../types';
 import NetInfo from '@react-native-community/netinfo';
 import { addToOfflineQueue, PendingTransportAction } from './offlineSync';
 
@@ -60,15 +60,23 @@ export const getLatestTransportLog = async (student_id: string): Promise<Transpo
   return data || null;
 };
 
-export const getTodayTransportLogs = async (school_id: string): Promise<TransportLog[]> => {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
+export const getTodayTransportLogs = async (school_id: string, selectedDate?: Date): Promise<TransportLog[]> => {
+  const targetDate = selectedDate || new Date();
+  
+  // Create start of day in local time
+  const startOfDay = new Date(targetDate);
+  startOfDay.setHours(0, 0, 0, 0);
+  
+  // Create end of day in local time
+  const endOfDay = new Date(targetDate);
+  endOfDay.setHours(23, 59, 59, 999);
   
   const { data, error } = await supabase
     .from('transport_logs')
     .select('*')
     .eq('school_id', school_id)
-    .gte('timestamp', yesterday.toISOString())
+    .gte('timestamp', startOfDay.toISOString())
+    .lte('timestamp', endOfDay.toISOString())
     .order('timestamp', { ascending: false });
 
   if (error) {
@@ -165,4 +173,70 @@ export const getStudentTransportLogsByDate = async (student_id: string, dateStr:
     return [];
   }
   return data || [];
+};
+
+export const getTransportExceptionsByDate = async (school_id: string, dateStr: string): Promise<TransportException[]> => {
+  const { data, error } = await supabase
+    .from('transport_exceptions')
+    .select('*')
+    .eq('school_id', school_id)
+    .eq('date', dateStr);
+  
+  if (error) {
+    console.error('Error fetching transport exceptions:', error);
+    return [];
+  }
+  return data || [];
+};
+
+export const getStudentTransportException = async (student_id: string, dateStr: string): Promise<TransportException | null> => {
+  const { data, error } = await supabase
+    .from('transport_exceptions')
+    .select('*')
+    .eq('student_id', student_id)
+    .eq('date', dateStr)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error fetching student exception:', error);
+  }
+  return data || null;
+};
+
+export const logTransportException = async (student_id: string, school_id: string, dateStr: string, type: 'absent' | 'parent_drop', reason?: string): Promise<boolean> => {
+  const id = Math.random().toString(36).substr(2, 9);
+  
+  // Delete existing exception for the day to avoid duplicates
+  await supabase.from('transport_exceptions').delete().eq('student_id', student_id).eq('date', dateStr);
+  
+  const { error: insertError } = await supabase.from('transport_exceptions').insert({
+      id,
+      student_id,
+      school_id,
+      date: dateStr,
+      exception_type: type,
+      reason,
+      created_at: new Date().toISOString()
+  });
+
+  if (insertError) {
+    console.error('Error logging exception:', insertError);
+    return false;
+  }
+  return true;
+};
+
+export const removeTransportException = async (student_id: string, dateStr: string, type: 'absent' | 'parent_drop'): Promise<boolean> => {
+  const { error } = await supabase
+    .from('transport_exceptions')
+    .delete()
+    .eq('student_id', student_id)
+    .eq('date', dateStr)
+    .eq('exception_type', type);
+
+  if (error) {
+    console.error('Error removing exception:', error);
+    return false;
+  }
+  return true;
 };

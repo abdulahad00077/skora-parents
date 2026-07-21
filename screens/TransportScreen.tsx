@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, Platform, Linking, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, Platform, Linking, RefreshControl, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -7,8 +7,8 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/useAuth';
 import { useStudent } from '../hooks/useStudent';
 import { useTheme } from '../contexts/ThemeContext';
-import { TransportLog } from '../types';
-import { getLatestTransportLog, subscribeToTransportLogs, getStudentTransportInfo, getStudentTransportLogsByDate } from '../services/transport';
+import { TransportLog, TransportException } from '../types';
+import { getLatestTransportLog, subscribeToTransportLogs, getStudentTransportInfo, getStudentTransportLogsByDate, getStudentTransportException, logTransportException, removeTransportException } from '../services/transport';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useTransliteration } from '../hooks/useTransliteration';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,6 +24,10 @@ const TransportScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [dateLogs, setDateLogs] = useState<TransportLog[]>([]);
   const [driverInfo, setDriverInfo] = useState<any>(null);
+  const [exception, setException] = useState<TransportException | null>(null);
+  const [showReasonModal, setShowReasonModal] = useState(false);
+  const [absentReason, setAbsentReason] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { t } = useLanguage();
   
   const transSelectedName = useTransliteration(selectedStudent?.name);
@@ -51,6 +55,9 @@ const TransportScreen = () => {
 
     const logs = await getStudentTransportLogsByDate(selectedStudent.id, dateStr);
     setDateLogs(logs);
+    
+    const excep = await getStudentTransportException(selectedStudent.id, dateStr);
+    setException(excep);
     
     if (isToday) {
        const latestLog = await getLatestTransportLog(selectedStudent.id);
@@ -140,6 +147,38 @@ const TransportScreen = () => {
     }
   };
 
+  const handleAbsentSubmit = async () => {
+    if (!selectedStudent) return;
+    if (!absentReason.trim()) {
+      Alert.alert('Error', 'Please enter a reason');
+      return;
+    }
+    setIsSubmitting(true);
+    const dateStr = selectedDate.toISOString().split('T')[0];
+    const success = await logTransportException(selectedStudent.id, selectedStudent.school_id, dateStr, 'absent', absentReason);
+    if (success) {
+      setException({ id: 'temp', student_id: selectedStudent.id, school_id: selectedStudent.school_id, date: dateStr, exception_type: 'absent', reason: absentReason });
+      setShowReasonModal(false);
+    } else {
+      Alert.alert('Error', 'Failed to save');
+    }
+    setIsSubmitting(false);
+  };
+
+  const toggleParentDrop = async () => {
+    if (!selectedStudent) return;
+    const dateStr = selectedDate.toISOString().split('T')[0];
+    setIsSubmitting(true);
+    if (exception?.exception_type === 'parent_drop') {
+      const success = await removeTransportException(selectedStudent.id, dateStr, 'parent_drop');
+      if (success) setException(null);
+    } else {
+      const success = await logTransportException(selectedStudent.id, selectedStudent.school_id, dateStr, 'parent_drop');
+      if (success) setException({ id: 'temp', student_id: selectedStudent.id, school_id: selectedStudent.school_id, date: dateStr, exception_type: 'parent_drop' });
+    }
+    setIsSubmitting(false);
+  };
+
   const morningLogs = dateLogs.filter(l => new Date(l.timestamp).getHours() < 14);
   const eveningLogs = dateLogs.filter(l => new Date(l.timestamp).getHours() >= 14);
 
@@ -215,6 +254,28 @@ const TransportScreen = () => {
             display="default"
             onChange={onDateChange}
           />
+        )}
+
+        {selectedDate.toDateString() === new Date().toDateString() && (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+            <TouchableOpacity 
+              style={[styles.actionBtn, { backgroundColor: exception?.exception_type === 'absent' ? '#EF4444' : cardColor, borderColor: exception?.exception_type === 'absent' ? '#EF4444' : borderColor }]}
+              onPress={() => setShowReasonModal(true)}
+              disabled={exception?.exception_type === 'absent' || isSubmitting}
+            >
+              <Feather name="x-circle" size={18} color={exception?.exception_type === 'absent' ? '#FFF' : '#EF4444'} />
+              <Text style={[styles.actionBtnText, { color: exception?.exception_type === 'absent' ? '#FFF' : '#EF4444' }]}>{exception?.exception_type === 'absent' ? 'On Leave' : 'Not Coming Today'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.actionBtn, { backgroundColor: exception?.exception_type === 'parent_drop' ? '#F59E0B' : cardColor, borderColor: exception?.exception_type === 'parent_drop' ? '#F59E0B' : borderColor }]}
+              onPress={toggleParentDrop}
+              disabled={exception?.exception_type === 'absent' || isSubmitting}
+            >
+              <Feather name="user-check" size={18} color={exception?.exception_type === 'parent_drop' ? '#FFF' : '#F59E0B'} />
+              <Text style={[styles.actionBtnText, { color: exception?.exception_type === 'parent_drop' ? '#FFF' : '#F59E0B' }]}>{exception?.exception_type === 'parent_drop' ? 'I Will Drop (Undo)' : 'I Will Drop'}</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {selectedDate.toDateString() === new Date().toDateString() && log && (
@@ -294,6 +355,41 @@ const TransportScreen = () => {
           </View>
         </View>
       </ScrollView>
+
+      {/* Reason Modal for "Not Coming Today" */}
+      <Modal
+        visible={showReasonModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowReasonModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: cardColor, borderColor }]}>
+            <Text style={[styles.modalTitle, { color: textColor }]}>Reason for leave</Text>
+            <TextInput
+              style={[styles.modalInput, { backgroundColor: bgColor, color: textColor, borderColor }]}
+              placeholder="E.g., Sick today"
+              placeholderTextColor={subtextColor}
+              value={absentReason}
+              onChangeText={setAbsentReason}
+              multiline
+            />
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity style={styles.modalBtn} onPress={() => setShowReasonModal(false)}>
+                <Text style={{ color: subtextColor, fontWeight: '600' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalBtn, styles.modalBtnPrimary, { opacity: isSubmitting ? 0.7 : 1 }]} 
+                onPress={handleAbsentSubmit}
+                disabled={isSubmitting}
+              >
+                <Text style={styles.modalBtnText}>{isSubmitting ? 'Saving...' : 'Confirm'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 };
@@ -440,6 +536,64 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#E2E8F0',
     marginVertical: 16,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginHorizontal: 4,
+    gap: 8,
+  },
+  actionBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 16,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    height: 100,
+    textAlignVertical: 'top',
+    marginBottom: 24,
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 16,
+  },
+  modalBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  modalBtnPrimary: {
+    backgroundColor: '#EF4444',
+  },
+  modalBtnText: {
+    color: '#FFF',
+    fontWeight: '700',
   },
 });
 
