@@ -14,7 +14,8 @@ import {
   FlatList
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { supabase } from '../services/supabase';
+import { supabase, resolveSchoolDatabase, coreSupabase } from '../services/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { useAuth } from '../hooks/useAuth';
 import { useStudent } from '../hooks/useStudent';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -297,6 +298,8 @@ const LoginScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [matchingStudents, setMatchingStudents] = useState<Student[]>([]);
   const [showSelection, setShowSelection] = useState(false);
+  const [showRoleSelection, setShowRoleSelection] = useState(false);
+  const [availableDriver, setAvailableDriver] = useState<Driver | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   
   // Driver Password Reset State
@@ -349,45 +352,77 @@ const LoginScreen = () => {
 
       const uniqueVariations = Array.from(new Set(variations));
 
-      // Step 1: Check if it's a Driver
-      const { data: drivers, error: driverError } = await supabase
+      // Find students and drivers across ALL databases (core + dedicated)
+      let allDrivers: Driver[] = [];
+      let allStudents: Student[] = [];
+
+      // 1. Search Core Database
+      const { data: coreDrivers, error: driverError } = await coreSupabase
         .from('transport_drivers')
         .select('id, school_id, name:driver_name, phone:mobile_number, password, is_first_login, vehicle_number, vehicle_name:vehicle_type, route_id, created_at')
         .in('mobile_number', uniqueVariations);
+      
+      if (coreDrivers) allDrivers.push(...coreDrivers);
 
+      const { data: coreStudents, error: studentError } = await coreSupabase
+        .from('students')
+        .select('*')
+        .in('parent_phone', uniqueVariations);
+      
+      if (studentError) {
+        console.error('Supabase Core Student Query Error:', studentError);
+        throw studentError;
+      }
+      if (coreStudents) allStudents.push(...coreStudents);
+
+      // 2. Search Dedicated Databases
+      const { data: dedicatedSchools } = await coreSupabase
+        .from('schools')
+        .select('id, database_mode, supabase_url, supabase_anon_key')
+        .in('database_mode', ['dedicated', 'own']);
+
+      if (dedicatedSchools && dedicatedSchools.length > 0) {
+        await Promise.all(dedicatedSchools.map(async (school) => {
+          if (school.supabase_url && school.supabase_anon_key) {
+            try {
+              const schoolClient = createClient(school.supabase_url, school.supabase_anon_key);
+              
+              const { data: sDrivers } = await schoolClient
+                .from('transport_drivers')
+                .select('id, school_id, name:driver_name, phone:mobile_number, password, is_first_login, vehicle_number, vehicle_name:vehicle_type, route_id, created_at')
+                .in('mobile_number', uniqueVariations);
+              if (sDrivers && sDrivers.length > 0) allDrivers.push(...sDrivers);
+
+              const { data: sStudents } = await schoolClient
+                .from('students')
+                .select('*')
+                .in('parent_phone', uniqueVariations);
+              if (sStudents && sStudents.length > 0) allStudents.push(...sStudents);
+            } catch (err) {
+              console.warn(`Failed to search dedicated DB for school ${school.id}`, err);
+            }
+          }
+        }));
+      }
+
+      const drivers = allDrivers;
+      const students = allStudents;
+
+      let validDriver: Driver | null = null;
       let isDriverWithWrongPassword = false;
 
       if (drivers && drivers.length > 0) {
         const driver = drivers[0];
         if (driver.password && driver.password.toLowerCase() === password.toLowerCase()) {
-          if (driver.is_first_login) {
-            setDriverForReset(driver);
-            setShowPasswordReset(true);
-            setLoading(false);
-            return;
-          }
-          await signInManual(digitsOnly, 'driver', driver);
-          setLoading(false);
-          return;
+          validDriver = driver;
         } else {
           isDriverWithWrongPassword = true;
         }
       }
 
-      // Step 2: Find Students first (Simplified query without school join yet)
-      const { data: students, error: studentError } = await supabase
-        .from('students')
-        .select('*')
-        .in('parent_phone', uniqueVariations);
-
-      if (studentError) {
-        console.error('Supabase Student Query Error:', studentError);
-        throw studentError;
-      }
-
       console.log('LoginScreen: Student data found:', students?.length || 0);
 
-      if (!students || students.length === 0) {
+      if ((!students || students.length === 0) && !validDriver) {
         if (isDriverWithWrongPassword) {
           setError('Incorrect password for driver.');
         } else {
@@ -397,27 +432,32 @@ const LoginScreen = () => {
         return;
       }
 
-      // Step 2: Fetch school details for the first student
-      const { data: studentSchool, error: schoolError } = await supabase
-        .from('schools')
-        .select('name, slug, status, parents_app_enabled')
-        .eq('id', students[0].school_id)
-        .single();
-      
-      if (schoolError) {
-        console.warn('Could not fetch school details (likely RLS), but continuing login...:', schoolError);
-        // We will continue if school data is missing, assuming active for now if blocked by RLS
-      } else if (studentSchool) {
-        if (studentSchool.status !== 'active') {
-          setError('This school portal is currently disabled. Please contact support.');
-          setLoading(false);
-          return;
-        }
+      // Step 2: Fetch school details for the first student from core database (if any students exist)
+      let studentSchool = null;
+      if (students && students.length > 0) {
+        const { data, error: schoolError } = await coreSupabase
+          .from('schools')
+          .select('name, slug, status, parents_app_enabled')
+          .eq('id', students[0].school_id)
+          .single();
+        
+        studentSchool = data;
 
-        if (studentSchool.parents_app_enabled !== true) {
-          setError('Parent app access is currently disabled for your school. Please contact your administrator.');
-          setLoading(false);
-          return;
+        if (schoolError) {
+          console.warn('Could not fetch school details (likely RLS), but continuing login...:', schoolError);
+          // We will continue if school data is missing, assuming active for now if blocked by RLS
+        } else if (studentSchool) {
+          if (studentSchool.status !== 'active') {
+            setError('This school portal is currently disabled. Please contact support.');
+            setLoading(false);
+            return;
+          }
+
+          if (studentSchool.parents_app_enabled !== true) {
+            setError('Parent app access is currently disabled for your school. Please contact your administrator.');
+            setLoading(false);
+            return;
+          }
         }
       }
 
@@ -433,14 +473,41 @@ const LoginScreen = () => {
         return password.toLowerCase() === expectedPassword;
       });
 
-      if (validStudents.length === 0) {
-        setError('Incorrect password. Please try again.');
+      if (validStudents.length === 0 && !validDriver) {
+        if (isDriverWithWrongPassword) {
+          setError('Incorrect password for driver.');
+        } else if (students && students.length > 0) {
+          setError('Incorrect password. Please try again.');
+        }
         setLoading(false);
         return;
       }
 
+      // Check for dual roles
+      if (validDriver && validStudents.length > 0) {
+         setAvailableDriver(validDriver);
+         setMatchingStudents(validStudents);
+         setShowRoleSelection(true);
+         setLoading(false);
+         return;
+      }
+
+      if (validDriver) {
+         if (validDriver.is_first_login) {
+            setDriverForReset(validDriver);
+            setShowPasswordReset(true);
+            setLoading(false);
+            return;
+         }
+         await resolveSchoolDatabase(validDriver.school_id);
+         await signInManual(digitsOnly, 'driver', validDriver);
+         setLoading(false);
+         return;
+      }
+
       if (validStudents.length === 1) {
         // Only one child matches this password, log in directly
+        await resolveSchoolDatabase(validStudents[0].school_id);
         await selectStudent(validStudents[0]);
         await signInManual(digitsOnly);
       } else {
@@ -459,9 +526,29 @@ const LoginScreen = () => {
   };
 
   const handleSelectChild = async (student: Student) => {
+    await resolveSchoolDatabase(student.school_id);
     await selectStudent(student);
     await signInManual(phoneNumber.replace(/[^0-9]/g, ''), 'parent');
     setShowSelection(false);
+  };
+
+  const handleSelectRole = async (role: 'parent' | 'driver') => {
+    setShowRoleSelection(false);
+    if (role === 'driver' && availableDriver) {
+      if (availableDriver.is_first_login) {
+        setDriverForReset(availableDriver);
+        setShowPasswordReset(true);
+        return;
+      }
+      await resolveSchoolDatabase(availableDriver.school_id);
+      await signInManual(phoneNumber.replace(/[^0-9]/g, ''), 'driver', availableDriver);
+    } else if (role === 'parent') {
+      if (matchingStudents.length === 1) {
+        await handleSelectChild(matchingStudents[0]);
+      } else {
+        setShowSelection(true);
+      }
+    }
   };
 
   const handleChangePassword = async () => {
@@ -478,6 +565,8 @@ const LoginScreen = () => {
     setLoading(true);
     setError(null);
     try {
+      await resolveSchoolDatabase(driverForReset.school_id);
+      
       const { error } = await supabase
         .from('transport_drivers')
         .update({ password: newPassword, is_first_login: false })
@@ -500,6 +589,8 @@ const LoginScreen = () => {
     if (!driverForReset) return;
     setLoading(true);
     try {
+      await resolveSchoolDatabase(driverForReset.school_id);
+      
       const { error } = await supabase
         .from('transport_drivers')
         .update({ is_first_login: false })
@@ -522,6 +613,7 @@ const LoginScreen = () => {
     await setLanguage(lang);
     setShowLanguageSelection(false);
     if (driverForReset) {
+      await resolveSchoolDatabase(driverForReset.school_id);
       await signInManual(driverForReset.phone, 'driver', driverForReset);
     }
   };
@@ -675,6 +767,58 @@ const LoginScreen = () => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showRoleSelection}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowRoleSelection(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { backgroundColor: cardColor }]}>
+            <View style={styles.modalHeader}>
+              <View style={[styles.modalIndicator, { backgroundColor: borderColor }]} />
+              <Text style={[styles.modalTitle, { color: textColor }]}>Select Role</Text>
+              <Text style={[styles.modalSubTitle, { color: subtextColor }]}>You have multiple roles. How would you like to log in?</Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={[styles.studentItem, { backgroundColor: inputBgColor, borderColor: borderColor, borderWidth: 1 }]}
+              onPress={() => handleSelectRole('parent')}
+            >
+              <View style={{ backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : '#E0F2FE', padding: 12, borderRadius: 16 }}>
+                <Feather name="users" size={24} color="#0284C7" />
+              </View>
+              <View style={styles.studentInfo}>
+                <Text style={[styles.studentName, { color: textColor }]}>Parent Portal</Text>
+                <Text style={[styles.studentClass, { color: subtextColor }]}>Manage your children</Text>
+              </View>
+              <Feather name="chevron-right" size={24} color={subtextColor} />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.studentItem, { backgroundColor: inputBgColor, borderColor: borderColor, borderWidth: 1 }]}
+              onPress={() => handleSelectRole('driver')}
+            >
+              <View style={{ backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#D1FAE5', padding: 12, borderRadius: 16 }}>
+                <MaterialCommunityIcons name="bus" size={24} color="#10B981" />
+              </View>
+              <View style={styles.studentInfo}>
+                <Text style={[styles.studentName, { color: textColor }]}>Driver Portal</Text>
+                <Text style={[styles.studentClass, { color: subtextColor }]}>Manage transport</Text>
+              </View>
+              <Feather name="chevron-right" size={24} color={subtextColor} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              onPress={() => setShowRoleSelection(false)}
+              style={{ marginTop: 20, alignItems: 'center', padding: 15 }}
+            >
+              <Text style={{ color: '#64748B', fontWeight: '800' }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={showSelection}

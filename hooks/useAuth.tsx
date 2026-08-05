@@ -1,5 +1,6 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { supabase } from '../services/supabase';
+import { supabase, resolveSchoolDatabase, resetSchoolDatabase, coreSupabase } from '../services/supabase';
+import { initializeFromCache } from '../services/databaseResolver';
 import { Session, User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Driver } from '../types';
@@ -12,6 +13,7 @@ type AuthContextType = {
   driver: Driver | null;
   signOut: () => Promise<void>;
   signInManual: (phone: string, role?: 'parent' | 'driver', driverData?: Driver) => Promise<void>;
+  switchRole: (newRole: 'parent' | 'driver') => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,6 +56,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const restoreSession = async () => {
+      await initializeFromCache();
       const { data: { session: supabaseSession } } = await supabase.auth.getSession();
       const savedPhone = await AsyncStorage.getItem('manual_session_phone');
       const savedRole = await AsyncStorage.getItem('user_role') as 'parent' | 'driver' | null;
@@ -84,6 +87,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             return;
           }
           
+          await resolveSchoolDatabase(drivers[0].school_id);
           setUserRole('driver');
           setDriver(drivers[0]);
         } else {
@@ -104,7 +108,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         // Check if at least one student's school is active
         const schoolId = students[0].school_id;
-        const { data: studentSchool } = await supabase
+        const { data: studentSchool } = await coreSupabase
           .from('schools')
           .select('status, parents_app_enabled')
           .eq('id', schoolId)
@@ -117,6 +121,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             return;
           }
         }
+        await resolveSchoolDatabase(schoolId);
         setUserRole('parent');
         }
       }
@@ -145,8 +150,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const switchRole = async (newRole: 'parent' | 'driver') => {
+    if (newRole === userRole) return;
+    
+    // Check if they are eligible for the other role
+    if (!user?.phone) return;
+    
+    const phone = user.phone.replace(/[^0-9]/g, '');
+    const variations = [phone, `+91${phone}`, `91${phone}`, `0${phone}`, `+91 ${phone}`, `91 ${phone}`];
+    
+    if (newRole === 'driver') {
+      const driverOrQuery = variations.map(fmt => `mobile_number.eq.${fmt}`).join(',');
+      const { data: drivers, error } = await supabase
+        .from('transport_drivers')
+        .select('id, school_id, name:driver_name, phone:mobile_number, password, is_first_login, vehicle_number, vehicle_name:vehicle_type, route_id, created_at')
+        .or(driverOrQuery);
+        
+      if (error || !drivers || drivers.length === 0) return; // Cannot switch
+      
+      setUserRole('driver');
+      setDriver(drivers[0]);
+      await AsyncStorage.setItem('user_role', 'driver');
+      await AsyncStorage.setItem('driver_data', JSON.stringify(drivers[0]));
+    } else {
+      setUserRole('parent');
+      await AsyncStorage.setItem('user_role', 'parent');
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
+    resetSchoolDatabase();
     await AsyncStorage.removeItem('manual_session_phone');
     await AsyncStorage.removeItem('selected_student_id');
     await AsyncStorage.removeItem('user_role');
@@ -158,7 +192,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, userRole, driver, signOut, signInManual }}>
+    <AuthContext.Provider value={{ session, user, loading, userRole, driver, signOut, signInManual, switchRole }}>
       {children}
     </AuthContext.Provider>
   );
