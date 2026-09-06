@@ -107,7 +107,14 @@ const AppContent = () => {
     checkForUpdate();
   }, []);
   
-  return <RootNavigator />;
+import { SchoolAccessBlocker } from './components/SchoolAccessBlocker';
+
+  return (
+    <>
+      <SchoolAccessBlocker />
+      <RootNavigator />
+    </>
+  );
 };
 
 export default function App() {
