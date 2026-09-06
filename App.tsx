@@ -9,6 +9,7 @@ import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { useNotifications } from './hooks/useNotifications';
 import { useRealtimeNotifications } from './hooks/useRealtimeNotifications';
+import { SchoolAccessBlocker } from './components/SchoolAccessBlocker';
 
 const BACKGROUND_NOTIFICATION_TASK = 'BACKGROUND-NOTIFICATION-TASK';
 
@@ -106,8 +107,6 @@ const AppContent = () => {
 
     checkForUpdate();
   }, []);
-  
-import { SchoolAccessBlocker } from './components/SchoolAccessBlocker';
 
   return (
     <>
