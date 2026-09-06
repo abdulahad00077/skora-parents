@@ -49,15 +49,6 @@ jobs:
         with:
           node-version: 20
 
-      - name: Setup Expo and EAS
-        if: env.VERSION_CHANGED == 'true'
-        uses: expo/expo-github-action@v8
-        with:
-          expo-version: latest
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-          packager: npm
-
       - name: Install dependencies
         if: env.VERSION_CHANGED == 'true'
         run: npm ci
@@ -69,15 +60,18 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Build Locally on GitHub Runner
+      - name: Expo Prebuild
         if: env.VERSION_CHANGED == 'true'
-        id: build
-        env:
-          NODE_OPTIONS: --max-old-space-size=8192
-          _JAVA_OPTIONS: -XX:MaxMetaspaceSize=1g -Xmx3g
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          eas build --platform android --profile preview --local --non-interactive --clear-cache --output app-release.apk
+        run: npx expo prebuild --platform android
+
+      - name: Build APK
+        if: env.VERSION_CHANGED == 'true'
+        working-directory: ./android
+        run: ./gradlew assembleRelease
+
+      - name: Rename APK
+        if: env.VERSION_CHANGED == 'true'
+        run: mv android/app/build/outputs/apk/release/app-release.apk app-release.apk
 
 
 
