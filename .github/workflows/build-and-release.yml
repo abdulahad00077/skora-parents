@@ -75,6 +75,7 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=8192
           _JAVA_OPTIONS: -XX:MaxMetaspaceSize=1g -Xmx3g
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           eas build --platform android --profile preview --local --non-interactive --clear-cache --output app-release.apk
 

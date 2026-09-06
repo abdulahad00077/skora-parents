@@ -2,7 +2,7 @@
   "expo": {
     "name": "Skora Connect",
     "slug": "skora-parents",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "skora-parents",
